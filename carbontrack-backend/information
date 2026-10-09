@@ -1,0 +1,6 @@
+$env:DB_USERNAME = "root"
+$env:DB_PASSWORD = "venkat@78"
+
+.\mvnw.cmd spring-boot:run
+
+.\mvnw.cmd clean
