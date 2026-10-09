@@ -42,8 +42,7 @@ public class AuthController {
             return ResponseEntity.ok(authService.login(request));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", ex.getMessage()));
+                    .body(Map.of("messages", ex.getMessage()));
         }
     }
 }
-
