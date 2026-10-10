@@ -1,3 +1,4 @@
+
 package com.carbontrack.carbontrackbackend.service;
 
 import com.carbontrack.carbontrackbackend.dto.ActivityResponse;
@@ -9,6 +10,7 @@ import com.carbontrack.carbontrackbackend.exception.InvalidActivityException;
 import com.carbontrack.carbontrackbackend.exception.ResourceNotFoundException;
 import com.carbontrack.carbontrackbackend.repository.ActivityLogRepository;
 import com.carbontrack.carbontrackbackend.repository.UserRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -27,7 +29,8 @@ import java.util.Set;
 @Service
 public class ActivityService {
 
-    private static final Logger log = LoggerFactory.getLogger(ActivityService.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(ActivityService.class);
 
     private static final Map<Category, Set<String>> ALLOWED_UNITS = Map.of(
             Category.TRANSPORT, Set.of("km", "miles"),
@@ -40,9 +43,10 @@ public class ActivityService {
     private final UserRepository userRepository;
     private final EmissionCalculationService emissionCalculationService;
 
-    public ActivityService(ActivityLogRepository activityLogRepository,
-                           UserRepository userRepository,
-                           EmissionCalculationService emissionCalculationService) {
+    public ActivityService(
+            ActivityLogRepository activityLogRepository,
+            UserRepository userRepository,
+            EmissionCalculationService emissionCalculationService) {
         this.activityLogRepository = activityLogRepository;
         this.userRepository = userRepository;
         this.emissionCalculationService = emissionCalculationService;
@@ -52,7 +56,10 @@ public class ActivityService {
     public ActivityResponse createActivity(CreateActivityRequest request) {
         User user = getCurrentAuthenticatedUser();
 
-        String unit = request.getUnit().trim().toLowerCase(Locale.ROOT);
+        String unit = request.getUnit()
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
         validateCategoryRules(request.getCategory(), unit);
 
         BigDecimal co2eKg = emissionCalculationService.calculate(
@@ -73,21 +80,33 @@ public class ActivityService {
         logEntry.setNotes(request.getNotes());
 
         ActivityLog saved = activityLogRepository.save(logEntry);
-        log.info("Created activity id={} for userId={} (co2eKg={})",
-                saved.getId(), user.getId(), co2eKg);
+
+        log.info(
+                "Created activity id={} for userId={} (co2eKg={})",
+                saved.getId(),
+                user.getId(),
+                co2eKg
+        );
 
         return mapToResponse(saved);
     }
 
     @Transactional(readOnly = true)
-    public Page<ActivityResponse> getActivities(Category category,
-                                                LocalDate from,
-                                                LocalDate to,
-                                                Pageable pageable) {
+    public Page<ActivityResponse> getActivities(
+            Category category,
+            LocalDate from,
+            LocalDate to,
+            Pageable pageable) {
+
         User user = getCurrentAuthenticatedUser();
 
         Page<ActivityLog> page = activityLogRepository.findFiltered(
-                user.getId(), category, from, to, pageable);
+                user.getId(),
+                category,
+                from,
+                to,
+                pageable
+        );
 
         return page.map(this::mapToResponse);
     }
@@ -95,35 +114,53 @@ public class ActivityService {
     @Transactional(readOnly = true)
     public ActivityResponse getActivityById(Long id) {
         User user = getCurrentAuthenticatedUser();
-        ActivityLog entry = activityLogRepository.findByIdAndUserId(id, user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Activity not found with id: " + id));
+
+        ActivityLog entry = activityLogRepository
+                .findByIdAndUserId(id, user.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Activity not found with id: " + id
+                        ));
+
         return mapToResponse(entry);
     }
 
     private void validateCategoryRules(Category category, String unit) {
         Set<String> allowed = ALLOWED_UNITS.get(category);
+
         if (allowed == null || !allowed.contains(unit)) {
             throw new InvalidActivityException(
                     "Invalid unit '" + unit + "' for category " + category
-                            + ". Allowed: " + allowed);
+                            + ". Allowed: " + allowed
+            );
         }
     }
 
     private User getCurrentAuthenticatedUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication == null || !authentication.isAuthenticated()
+        if (authentication == null
+                || !authentication.isAuthenticated()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
-            throw new ResourceNotFoundException("No authenticated user found");
+            throw new ResourceNotFoundException(
+                    "No authenticated user found"
+            );
         }
 
-        String username = authentication.getName();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found: " + username));
+        // JwtAuthenticationFilter sets the user's email as the principal.
+        String email = authentication.getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Authenticated user not found: " + email
+                        ));
     }
 
     private ActivityResponse mapToResponse(ActivityLog entry) {
         ActivityResponse response = new ActivityResponse();
+
         response.setId(entry.getId());
         response.setCategory(entry.getCategory());
         response.setActivityType(entry.getActivityType());
@@ -133,6 +170,7 @@ public class ActivityService {
         response.setLogDate(entry.getLogDate());
         response.setNotes(entry.getNotes());
         response.setCreatedAt(entry.getCreatedAt());
+
         return response;
     }
 }

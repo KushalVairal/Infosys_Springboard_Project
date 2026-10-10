@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/activities")
+@RequestMapping("/api/activity-logs")
 public class ActivityLogController {
 
     private final ActivityLogService activityLogService;
