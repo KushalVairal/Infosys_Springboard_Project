@@ -10,10 +10,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
 
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
 
     Page<ActivityLog> findByUserId(Long userId, Pageable pageable);
+
+    List<ActivityLog> findByUserIdOrderByLogDateDesc(Long userId);
 
     Page<ActivityLog> findByUserIdAndCategory(Long userId, Category category, Pageable pageable);
 

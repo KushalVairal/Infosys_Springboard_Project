@@ -1,10 +1,13 @@
+
 package com.carbontrack.carbontrackbackend.controller;
 
-import com.carbontrack.carbontrackbackend.dto.UpdateProfileRequest;
 import com.carbontrack.carbontrackbackend.dto.UserProfileResponse;
+import com.carbontrack.carbontrackbackend.dto.UserProfileResponseDTO;
+import com.carbontrack.carbontrackbackend.dto.UserProfileUpdateDTO;
 import com.carbontrack.carbontrackbackend.service.UserService;
-import jakarta.validation.Valid;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,14 +21,17 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserProfileResponse> getMyProfile() {
-        return ResponseEntity.ok(userService.getCurrentUserProfile());
+    public UserProfileResponseDTO getMyProfile(
+            Authentication authentication) {
+        return userService.getMyProfile(authentication.getName());
     }
 
     @PutMapping("/me")
-    public ResponseEntity<UserProfileResponse> updateMyProfile(
-            @Valid @RequestBody UpdateProfileRequest request) {
-        return ResponseEntity.ok(userService.updateCurrentUserProfile(request));
+    public UserProfileResponseDTO updateMyProfile(
+            Authentication authentication,
+            @RequestBody UserProfileUpdateDTO request) {
+        return userService.updateMyProfile(
+                authentication.getName(), request);
     }
 
     @PatchMapping("/me/visibility")
@@ -33,6 +39,7 @@ public class UserController {
             @RequestParam(required = false) Boolean goalVisibility,
             @RequestParam(required = false) Boolean leaderboardOptIn) {
         return ResponseEntity.ok(
-                userService.updateVisibilitySettings(goalVisibility, leaderboardOptIn));
+                userService.updateVisibilitySettings(
+                        goalVisibility, leaderboardOptIn));
     }
 }
