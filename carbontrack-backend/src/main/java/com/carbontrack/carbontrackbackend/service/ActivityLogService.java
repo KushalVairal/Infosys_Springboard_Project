@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.carbontrack.carbontrackbackend.entity.Category;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -81,8 +82,7 @@ public class ActivityLogService {
 
         ActivityLog activity = new ActivityLog();
         activity.setUser(user);
-        activity.setCategory(request.category().trim());
-        activity.setActivityType(request.activityType().trim());
+activity.setCategory(Category.valueOf(request.category().trim().toUpperCase()));        activity.setActivityType(request.activityType().trim());
         activity.setQuantity(request.quantity());
         activity.setUnit(request.unit().trim());
         activity.setLogDate(request.logDate());
@@ -114,7 +114,7 @@ public class ActivityLogService {
     private ActivityLogResponseDTO toResponse(ActivityLog activity) {
         return new ActivityLogResponseDTO(
                 activity.getId(),
-                activity.getCategory(),
+                activity.getCategory().name(),   
                 activity.getActivityType(),
                 activity.getQuantity(),
                 activity.getUnit(),
