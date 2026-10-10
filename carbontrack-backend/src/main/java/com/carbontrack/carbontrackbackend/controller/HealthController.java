@@ -16,4 +16,10 @@ public class HealthController {
                 "status", "UP"
         );
     }
+    @GetMapping("/api/private-test")
+public Map<String, String> privateTest() {
+    return Map.of(
+            "message", "JWT authentication successful"
+    );
+}
 }
