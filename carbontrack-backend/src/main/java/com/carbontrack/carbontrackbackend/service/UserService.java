@@ -160,11 +160,11 @@ public class UserService {
                     "No authenticated user found");
         }
 
-        String username = authentication.getName();
-
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Authenticated user not found: " + username));
+        
+String email = authentication.getName();
+return userRepository.findByEmail(email)
+    .orElseThrow(() -> new ResourceNotFoundException(
+        "Authenticated user not found: " + email));
     }
 
     private void applyUsernameUpdate(User user, String newUsername) {
