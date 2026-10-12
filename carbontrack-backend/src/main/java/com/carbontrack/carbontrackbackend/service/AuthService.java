@@ -1,4 +1,3 @@
-
 package com.carbontrack.carbontrackbackend.service;
 
 import com.carbontrack.carbontrackbackend.dto.AuthResponseDTO;
@@ -7,6 +6,10 @@ import com.carbontrack.carbontrackbackend.dto.RegisterRequestDTO;
 import com.carbontrack.carbontrackbackend.entity.User;
 import com.carbontrack.carbontrackbackend.repository.UserRepository;
 import com.carbontrack.carbontrackbackend.security.JwtService;
+<<<<<<< HEAD
+=======
+
+>>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,12 +33,12 @@ public class AuthService {
     @Transactional
     public AuthResponseDTO register(RegisterRequestDTO request) {
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(request.getEmail().trim().toLowerCase())) {
             throw new IllegalArgumentException(
                     "An account with this email already exists");
         }
 
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (userRepository.existsByUsername(request.getUsername().trim())) {
             throw new IllegalArgumentException(
                     "This username is already taken");
         }
@@ -46,7 +49,6 @@ public class AuthService {
         user.setPasswordHash(
                 passwordEncoder.encode(request.getPassword()));
 
-        // The User entity's default role is USER.
         User savedUser = userRepository.save(user);
 
         return new AuthResponseDTO(
@@ -67,12 +69,19 @@ public class AuthService {
                         "Invalid email or password"));
 
         if (!passwordEncoder.matches(
-                request.getPassword(), user.getPasswordHash())) {
+                request.getPassword(),
+                user.getPasswordHash())) {
             throw new IllegalArgumentException(
                     "Invalid email or password");
         }
 
+<<<<<<< HEAD
         String token = jwtService.generateToken(user.getEmail());
+=======
+        String token = jwtService.generateToken(
+                user.getId(),
+                user.getEmail());
+>>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170
 
         return new AuthResponseDTO(
                 "Login successful",
@@ -83,4 +92,3 @@ public class AuthService {
     }
 
 }
-

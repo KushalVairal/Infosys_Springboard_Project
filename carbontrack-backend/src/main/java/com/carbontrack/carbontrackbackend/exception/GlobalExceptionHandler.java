@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 package com.carbontrack.carbontrackbackend.exception;
 
@@ -19,10 +20,23 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+=======
+package com.carbontrack.carbontrackbackend.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+>>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+<<<<<<< HEAD
 
     private ErrorResponseDTO createError(
             HttpStatus status,
@@ -169,3 +183,48 @@ public class GlobalExceptionHandler {
                 .body(body);
     }
 }
+=======
+	@ExceptionHandler(InvalidActivityException.class)
+	public ResponseEntity<Map<String, Object>> handleInvalidActivity(InvalidActivityException ex) {
+	    return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+	}
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicate(DuplicateResourceException ex) {
+        return build(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors()
+                .forEach(e -> fieldErrors.put(e.getField(), e.getDefaultMessage()));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("message", "Validation failed");
+        body.put("errors", fieldErrors);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+    }
+
+    private ResponseEntity<Map<String, Object>> build(HttpStatus status, String message) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", status.value());
+        body.put("message", message);
+        return ResponseEntity.status(status).body(body);
+    }
+    
+}
+>>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170

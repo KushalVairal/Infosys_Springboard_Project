@@ -1,0 +1,3 @@
+
+ALTER TABLE activity_logs
+ADD COLUMN notes VARCHAR(255) NULL;
