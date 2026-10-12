@@ -42,6 +42,20 @@ public class User {
             insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
+
+    @Column(name = "full_name", length = 100)
+    private String fullName;
+
+    @Column(name = "phone_number", length = 25)
+    private String phoneNumber;
+
+    @Column(name = "location", length = 150)
+    private String location;
+
+    @Column(name = "profile_image_url", length = 2048)
+    private String profileImageUrl;
+
+
     public User() {
     }
 
@@ -112,5 +126,39 @@ public class User {
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
+
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
 }
 

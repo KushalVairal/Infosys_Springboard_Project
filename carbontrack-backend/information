@@ -1,6 +1,243 @@
+carbontrack
+
 $env:DB_USERNAME = "root"
 $env:DB_PASSWORD = "venkat@78"
+
+$env:DB_URL = "jdbc:mysql://localhost:3306/carbontrack"
+$env:DB_USERNAME = "root"
+$env:DB_PASSWORD = Read-Host "Enter password"
 
 .\mvnw.cmd spring-boot:run
 
 .\mvnw.cmd clean
+
+
+
+# JWT settings
+app.jwt.secret=${JWT_SECRET}
+app.jwt.expiration-ms=3600000
+
+add above in propertice and run below in powershell
+$bytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$secret = [Convert]::ToBase64String($bytes)
+$rng.Dispose()
+$secret
+
+$bytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$env:JWT_SECRET = [Convert]::ToBase64String($bytes)
+$rng.Dispose()
+
+Write-Output "JWT_SECRET configured for this terminal."
+
+$env:MAIL_USERNAME="venkateshreddy262878@gmail.com"
+$env:MAIL_PASSWORD="jqwv ahod uxof hfit"
+
+
+
+
+
+
+
+
+
+CarbonTrack — Milestone 1 Task Tracker
+Java 17 · Spring Boot 3 · MySQL · Flyway · Spring Data JPA · JWT · Spring Mail
+Milestone 1 tasks
+1. Backend Project Setup
+[ ] Create Spring Boot project in IntelliJ IDEA
+[ ] Configure Maven dependencies and Java 17
+[ ] Configure application.properties and database connection
+[ ] Create and test the health endpoint
+
+2. Database Schema Design
+[ ] Design tables and columns
+[ ] Define primary keys, foreign keys and relationships
+[ ] Confirm database choice with mentor
+
+3. Flyway Migrations and JPA Entities
+[ ] Create Flyway SQL migration files
+[ ] Create Organisation and User entities
+[ ] Create EmissionFactor and ActivityLog entities
+[ ] Create Goal, Badge and UserBadge entities
+[ ] Create repositories
+[ ] Run application and validate mappings
+
+4. Registration and Login
+[ ] Create registration and login DTOs
+[ ] Hash passwords using BCrypt
+[ ] Implement registration and login services
+[ ] Create authentication endpoints
+
+5. JWT Authentication and Security
+[ ] Generate and validate JWT tokens
+[ ] Create JWT authentication filter
+[ ] Configure Spring Security
+[ ] Protect authenticated endpoints
+[ ] Test authorized and unauthorized requests
+
+6. Forgot Password with Email OTP
+[ ] Create OTP verification table and entity
+[ ] Configure Spring Mail
+[ ] Generate and email OTP
+[ ] Verify OTP with expiry and attempt limits
+[ ] Authorize a single password reset
+[ ] Hash and save the new password
+
+7. User Profile Management
+[ ] Get current user profile
+[ ] Update profile and preferences
+[ ] Implement profile visibility settings
+[ ] Test profile endpoints
+
+8. Activity Logging APIs
+[ ] Create activity request and response DTOs
+[ ] Validate transport activities
+[ ] Validate electricity activities
+[ ] Validate food activities
+[ ] Validate shopping activities
+[ ] Save and retrieve user activities
+
+9. Emission Calculation Engine
+[ ] Retrieve emission factor from database
+[ ] Calculate quantity multiplied by emission factor
+[ ] Save calculated kg CO2e with activity
+[ ] Handle missing or inapplicable factors
+[ ] Test calculation accuracy
+
+10. Validation and Error Handling
+[ ] Validate required fields and quantity ranges
+[ ] Handle duplicate emails and usernames
+[ ] Handle invalid OTPs and expired OTPs
+[ ] Return consistent API error responses
+
+11. Testing and Verification
+[ ] Write JUnit 5 unit tests
+[ ] Add parameterized emission calculation tests
+[ ] Test repositories and database mappings
+[ ] Test authentication and OTP flows
+[ ] Test activity APIs in Postman
+[ ] Document successful test results
+
+12. Milestone Review and Documentation
+[ ] Review required deliverables with mentor
+[ ] Document APIs and setup instructions
+[ ] Check Git commits and team integration
+[ ] Prepare Milestone 1 demonstration
+
+
+
+CarbonTrack/
+│
+├── carbontrack-backend/
+│   ├── pom.xml
+│   ├── mvnw
+│   ├── mvnw.cmd
+│   ├── .gitignore
+│   ├── README.md
+│   │
+│   └── src/
+│       ├── main/
+│       │   ├── java/
+│       │   │   └── com/
+│       │   │       └── carbontrack/
+│       │   │           ├── CarbonTrackApplication.java
+│       │   │           │
+│       │   │           ├── config/
+│       │   │           │   └── AppConfig.java
+│       │   │           │
+│       │   │           ├── entity/
+│       │   │           │   ├── User.java
+│       │   │           │   ├── Organisation.java
+│       │   │           │   ├── ActivityLog.java
+│       │   │           │   ├── EmissionFactor.java
+│       │   │           │   ├── Goal.java
+│       │   │           │   ├── Badge.java
+│       │   │           │   └── UserBadge.java
+│       │   │           │
+│       │   │           ├── repository/
+│       │   │           │   ├── UserRepository.java
+│       │   │           │   ├── OrganisationRepository.java
+│       │   │           │   ├── ActivityLogRepository.java
+│       │   │           │   ├── EmissionFactorRepository.java
+│       │   │           │   ├── GoalRepository.java
+│       │   │           │   ├── BadgeRepository.java
+│       │   │           │   └── UserBadgeRepository.java
+│       │   │           │
+│       │   │           ├── service/
+│       │   │           │   ├── UserService.java
+│       │   │           │   ├── ActivityService.java
+│       │   │           │   └── EmissionCalculationService.java
+│       │   │           │
+│       │   │           ├── controller/
+│       │   │           │   ├── AuthController.java
+│       │   │           │   ├── UserController.java
+│       │   │           │   └── ActivityController.java
+│       │   │           │
+│       │   │           ├── dto/
+│       │   │           │   ├── RegisterRequest.java
+│       │   │           │   ├── LoginRequest.java
+│       │   │           │   ├── AuthResponse.java
+│       │   │           │   ├── UserProfileResponse.java
+│       │   │           │   ├── UpdateProfileRequest.java
+│       │   │           │   ├── CreateActivityRequest.java
+│       │   │           │   └── ActivityResponse.java
+│       │   │           │
+│       │   │           ├── security/
+│       │   │           │   ├── SecurityConfig.java
+│       │   │           │   ├── JwtService.java
+│       │   │           │   ├── JwtAuthenticationFilter.java
+│       │   │           │   └── CustomUserDetailsService.java
+│       │   │           │
+│       │   │           └── exception/
+│       │   │               ├── GlobalExceptionHandler.java
+│       │   │               ├── ResourceNotFoundException.java
+│       │   │               └── InvalidActivityException.java
+│       │   │
+│       │   └── resources/
+│       │       ├── application.properties
+│       │       └── db/
+│       │           └── migration/
+│       │               ├── V1__create_users.sql
+│       │               ├── V2__create_organisations.sql
+│       │               ├── V3__create_emission_factors.sql
+│       │               ├── V4__create_activity_logs.sql
+│       │               ├── V5__create_goals.sql
+│       │               ├── V6__create_badges.sql
+│       │               └── V7__create_user_badges.sql
+│       │
+│       └── test/
+│           └── java/
+│               └── com/
+│                   └── carbontrack/
+│                       ├── service/
+│                       │   ├── EmissionCalculationServiceTest.java
+│                       │   └── ActivityServiceTest.java
+│                       ├── controller/
+│                       │   ├── AuthControllerTest.java
+│                       │   └── ActivityControllerTest.java
+│                       └── repository/
+│                           └── EmissionFactorRepositoryTest.java
+│
+└── README.md
+
+com.carbontrack.carbontrackbackend/
+├── controller/
+│   └── AuthController.java
+├── service/
+│   ├── AuthService.java
+│   ├── PasswordResetService.java
+│   └── EmailService.java
+├── repository/
+│   └── EmailOtpVerificationRepository.java
+├── entity/
+│   └── EmailOtpVerification.java
+├── dto/
+│   ├── ForgotPasswordRequest.java
+│   ├── VerifyOtpRequest.java
+│   └── ResetPasswordRequest.java
+└── security/
+    └── SecurityConfig.java
