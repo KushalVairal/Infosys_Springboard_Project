@@ -1,7 +1,6 @@
 
 package com.carbontrack.carbontrackbackend.dto;
 
-<<<<<<< HEAD
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -72,15 +71,3 @@ public class ActivityLogRequestDTO {
         this.logDate = logDate;
     }
 }
-=======
-import java.math.BigDecimal;
-import java.time.LocalDate;
-
-public record ActivityLogRequestDTO(
-        String category,
-        String activityType,
-        BigDecimal quantity,
-        String unit,
-        LocalDate logDate
-) {}
->>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170

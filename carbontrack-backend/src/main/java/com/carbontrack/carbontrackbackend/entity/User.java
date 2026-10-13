@@ -1,3 +1,4 @@
+
 package com.carbontrack.carbontrackbackend.entity;
 
 import jakarta.persistence.*;
@@ -14,36 +15,33 @@ public class User {
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private Role role = Role.USER;
+    @Column(nullable = false, length = 30)
+    private String role = "USER";
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "org_id")
     private Organisation organisation;
 
-    @Column(name = "preferred_units", length = 20)
-    private String preferredUnits = "metric";
+    @Column(name = "preferred_unit", nullable = false, length = 20)
+    private String preferredUnit = "KG_CO2E";
 
-    @Column(name = "goal_visibility")
+    @Column(name = "goal_visibility", nullable = false)
     private Boolean goalVisibility = true;
 
-    @Column(name = "leaderboard_opt_in")
-    private Boolean leaderboardOptIn = true;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false,
+            insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false,
+            insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
-<<<<<<< HEAD
 
     @Column(name = "full_name", length = 100)
     private String fullName;
@@ -59,48 +57,48 @@ public class User {
 
 
     public User() {
-=======
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = this.createdAt;
->>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+    public Long getId() {
+        return id;
     }
 
-    // getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public String getUsername() {
+        return username;
+    }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    public String getEmail() {
+        return email;
+    }
 
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    public Role getRole() { return role; }
-    public void setRole(Role role) { this.role = role; }
+    public String getPasswordHash() {
+        return passwordHash;
+    }
 
-    public Organisation getOrganisation() { return organisation; }
-    public void setOrganisation(Organisation organisation) { this.organisation = organisation; }
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
 
-    public String getPreferredUnits() { return preferredUnits; }
-    public void setPreferredUnits(String preferredUnits) { this.preferredUnits = preferredUnits; }
+    public String getRole() {
+        return role;
+    }
 
-    public Boolean getGoalVisibility() { return goalVisibility; }
-    public void setGoalVisibility(Boolean goalVisibility) { this.goalVisibility = goalVisibility; }
+    public void setRole(String role) {
+        this.role = role;
+    }
 
-    public Boolean getLeaderboardOptIn() { return leaderboardOptIn; }
-    public void setLeaderboardOptIn(Boolean leaderboardOptIn) { this.leaderboardOptIn = leaderboardOptIn; }
+    public Organisation getOrganisation() {
+        return organisation;
+    }
 
-<<<<<<< HEAD
     public void setOrganisation(Organisation organisation) {
         this.organisation = organisation;
     }
@@ -163,11 +161,4 @@ public class User {
     }
 
 }
-=======
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
->>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-}

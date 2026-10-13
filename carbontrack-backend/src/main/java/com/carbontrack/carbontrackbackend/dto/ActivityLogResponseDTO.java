@@ -3,7 +3,6 @@ package com.carbontrack.carbontrackbackend.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-<<<<<<< HEAD
 
 public class ActivityLogResponseDTO {
 
@@ -60,17 +59,3 @@ public class ActivityLogResponseDTO {
         return logDate;
     }
 }
-=======
-import java.time.LocalDateTime;
-
-public record ActivityLogResponseDTO(
-        Long id,
-        String category,
-        String activityType,
-        BigDecimal quantity,
-        String unit,
-        BigDecimal co2eKg,
-        LocalDate logDate,
-        LocalDateTime createdAt
-) {}
->>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170

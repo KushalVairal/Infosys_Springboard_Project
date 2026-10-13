@@ -1,7 +1,6 @@
 
 package com.carbontrack.carbontrackbackend.dto;
 
-<<<<<<< HEAD
 
 import java.time.LocalDateTime;
 
@@ -72,18 +71,3 @@ public class UserProfileResponseDTO {
 }
 
 
-=======
-import java.time.LocalDateTime;
-
-public record UserProfileResponseDTO(
-        Long id,
-        String username,
-        String email,
-        String role,
-        String preferredUnit,
-        Boolean goalVisibility,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) {
-}
->>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170
