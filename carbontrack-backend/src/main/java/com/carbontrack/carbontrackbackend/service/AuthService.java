@@ -1,9 +1,9 @@
 
 package com.carbontrack.carbontrackbackend.service;
 
-import com.carbontrack.carbontrackbackend.dto.AuthResponseDTO;
-import com.carbontrack.carbontrackbackend.dto.LoginRequestDTO;
-import com.carbontrack.carbontrackbackend.dto.RegisterRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.auth.AuthResponseDTO;
+import com.carbontrack.carbontrackbackend.dto.auth.LoginRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.auth.RegisterRequestDTO;
 import com.carbontrack.carbontrackbackend.entity.User;
 import com.carbontrack.carbontrackbackend.repository.UserRepository;
 import com.carbontrack.carbontrackbackend.security.JwtService;

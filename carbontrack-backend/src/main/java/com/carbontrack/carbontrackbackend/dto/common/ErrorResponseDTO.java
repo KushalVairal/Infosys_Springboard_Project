@@ -1,5 +1,5 @@
 
-package com.carbontrack.carbontrackbackend.dto;
+package com.carbontrack.carbontrackbackend.dto.common;
 
 import java.time.LocalDateTime;
 import java.util.Map;

@@ -1,5 +1,5 @@
 
-package com.carbontrack.carbontrackbackend.dto;
+package com.carbontrack.carbontrackbackend.dto.profile;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

@@ -1,8 +1,8 @@
 
 package com.carbontrack.carbontrackbackend.service;
 
-import com.carbontrack.carbontrackbackend.dto.ActivityLogRequestDTO;
-import com.carbontrack.carbontrackbackend.dto.ActivityLogResponseDTO;
+import com.carbontrack.carbontrackbackend.dto.activity.ActivityLogRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.activity.ActivityLogResponseDTO;
 import com.carbontrack.carbontrackbackend.entity.ActivityLog;
 import com.carbontrack.carbontrackbackend.entity.User;
 import com.carbontrack.carbontrackbackend.repository.ActivityLogRepository;

@@ -1,7 +1,7 @@
 
 package com.carbontrack.carbontrackbackend.exception;
 
-import com.carbontrack.carbontrackbackend.dto.ErrorResponseDTO;
+import com.carbontrack.carbontrackbackend.dto.common.ErrorResponseDTO;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;

@@ -1,5 +1,5 @@
 
-package com.carbontrack.carbontrackbackend.dto;
+package com.carbontrack.carbontrackbackend.dto.activity;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;

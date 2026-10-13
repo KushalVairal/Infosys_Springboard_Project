@@ -1,9 +1,8 @@
 
 package com.carbontrack.carbontrackbackend.controller;
 
-import com.carbontrack.carbontrackbackend.dto.AuthResponseDTO;
-import com.carbontrack.carbontrackbackend.dto.LoginRequestDTO;
-import com.carbontrack.carbontrackbackend.dto.RegisterRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.auth.LoginRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.auth.RegisterRequestDTO;
 import com.carbontrack.carbontrackbackend.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

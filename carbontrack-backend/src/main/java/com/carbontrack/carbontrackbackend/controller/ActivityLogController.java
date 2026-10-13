@@ -1,8 +1,8 @@
 
 package com.carbontrack.carbontrackbackend.controller;
 
-import com.carbontrack.carbontrackbackend.dto.ActivityLogRequestDTO;
-import com.carbontrack.carbontrackbackend.dto.ActivityLogResponseDTO;
+import com.carbontrack.carbontrackbackend.dto.activity.ActivityLogRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.activity.ActivityLogResponseDTO;
 import com.carbontrack.carbontrackbackend.service.ActivityLogService;
 
 import jakarta.validation.Valid;
