@@ -1,34 +1,19 @@
 
-package com.carbontrack.carbontrackbackend.dto;
+package com.carbontrack.carbontrackbackend.dto.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
-public class RegisterRequestDTO {
-
-    @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 50, message = "Username must be 3–50 characters")
-    private String username;
+public class LoginRequestDTO {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Enter a valid email address")
-    @Size(max = 255)
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 8, max = 72, message = "Password must be 8–72 characters")
     private String password;
 
-    public RegisterRequestDTO() {
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
+    public LoginRequestDTO() {
     }
 
     public String getEmail() {

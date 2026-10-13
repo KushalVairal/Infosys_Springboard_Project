@@ -1,5 +1,5 @@
 
-package com.carbontrack.carbontrackbackend.dto;
+package com.carbontrack.carbontrackbackend.dto.activity;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

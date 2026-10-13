@@ -1,8 +1,8 @@
 
 package com.carbontrack.carbontrackbackend.service;
 
-import com.carbontrack.carbontrackbackend.dto.UpdateProfileRequestDTO;
-import com.carbontrack.carbontrackbackend.dto.UserProfileResponseDTO;
+import com.carbontrack.carbontrackbackend.dto.profile.UpdateProfileRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.profile.UserProfileResponseDTO;
 import com.carbontrack.carbontrackbackend.entity.User;
 import com.carbontrack.carbontrackbackend.repository.UserRepository;
 

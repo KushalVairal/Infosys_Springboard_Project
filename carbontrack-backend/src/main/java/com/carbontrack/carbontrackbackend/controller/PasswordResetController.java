@@ -1,9 +1,9 @@
 
 package com.carbontrack.carbontrackbackend.controller;
 
-import com.carbontrack.carbontrackbackend.dto.ForgotPasswordRequestDTO;
-import com.carbontrack.carbontrackbackend.dto.ResetPasswordRequestDTO;
-import com.carbontrack.carbontrackbackend.dto.VerifyOTPRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.auth.ForgotPasswordRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.auth.ResetPasswordRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.auth.VerifyOTPRequestDTO;
 import com.carbontrack.carbontrackbackend.service.PasswordResetService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;

@@ -1,8 +1,8 @@
 
 package com.carbontrack.carbontrackbackend.controller;
 
-import com.carbontrack.carbontrackbackend.dto.UpdateProfileRequestDTO;
-import com.carbontrack.carbontrackbackend.dto.UserProfileResponseDTO;
+import com.carbontrack.carbontrackbackend.dto.profile.UpdateProfileRequestDTO;
+import com.carbontrack.carbontrackbackend.dto.profile.UserProfileResponseDTO;
 import com.carbontrack.carbontrackbackend.service.UserProfileService;
 
 import jakarta.validation.Valid;
