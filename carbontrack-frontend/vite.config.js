@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/Infosys_Springboard_Project/', // 🔴 replace with your actual repo name
+  base: '/Infosys_Springboard_Project/',
 })
