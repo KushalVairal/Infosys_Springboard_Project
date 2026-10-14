@@ -16,10 +16,19 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
+  // Tolerates different backend response shapes:
+  // { token, user } | { accessToken, username, ... } | { jwt, ... }
   const persist = (data) => {
-    localStorage.setItem('ct_token', data.token);
-    localStorage.setItem('ct_user', JSON.stringify(data.user));
-    setUser(data.user);
+    const token = data.token || data.accessToken || data.jwt;
+    if (!token) throw new Error('Login response did not contain a token');
+    const u = data.user || {
+      id: data.id ?? data.userId,
+      username: data.username,
+      email: data.email,
+    };
+    localStorage.setItem('ct_token', token);
+    localStorage.setItem('ct_user', JSON.stringify(u));
+    setUser(u);
   };
 
   const login = async (credentials) => persist(await authApi.login(credentials));
