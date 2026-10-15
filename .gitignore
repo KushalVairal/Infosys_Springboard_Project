@@ -1,8 +1,14 @@
 node_modules/
 dist/
 target/
-backend.env
+.env
 .env.local
+.env.*.local
+*.env
+!.env.example
+!*.env.example
+backend.env
 *.log
 .idea/
 .vscode/
+

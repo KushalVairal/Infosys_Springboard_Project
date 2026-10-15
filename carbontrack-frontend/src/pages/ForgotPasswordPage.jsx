@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { LeafIcon } from '../components/NatureIcons';
-import { Mail, KeyRound, Lock, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft, Info } from 'lucide-react';
+import { Mail, KeyRound, Lock, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function ForgotPasswordPage() {
@@ -146,13 +146,6 @@ export default function ForgotPasswordPage() {
           </div>
         )}
 
-        {/* Email delivery disclosure banner */}
-        <div className="smtp-notice-card">
-          <Info size={16} color="#668F63" />
-          <p>
-            <strong>Email Notice:</strong> OTP dispatch relies on backend SMTP credentials (<code>MAIL_USERNAME</code> and <code>MAIL_PASSWORD</code>). If SMTP is not configured in your environment, contact your administrator.
-          </p>
-        </div>
 
         {/* STEP 1: Email Form */}
         {step === 1 && (

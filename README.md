@@ -12,10 +12,14 @@ CarbonTrack records everyday activities and estimates their carbon footprint.
 Infosys_Springboard_Project/
 ├── .project                  (Eclipse project file)
 ├── package.json              (root scripts: setup, dev, dev:full, backend, deploy ...)
-├── backend.env.example       (copy to backend.env - git-ignored)
+├── backend.env.example       (root-level env template)
 ├── scripts/run-backend.js
 ├── carbontrack-backend/      (Spring Boot - pom.xml, mvnw, src/)
+│   ├── .env.example          (copy to .env - git-ignored)
+│   └── src/
 └── carbontrack-frontend/     (React app)
+    ├── .env.example          (copy to .env)
+    └── src/
 ```
 
 ## Prerequisites
@@ -43,26 +47,26 @@ forgot-password OTP is always `123456`.
    ```
    Flyway creates all tables automatically on first start. Do not create them by hand.
 2. Make sure `carbontrack-backend/` contains your Spring Boot project (`pom.xml`, `mvnw`, `src/`).
-3. Copy `carbontrack-frontend/backend-extras/CorsConfig.java` into
-   `carbontrack-backend/src/main/java/com/carbontrack/carbontrackbackend/config/` and make sure
-   `SecurityConfig` has `.cors(Customizer.withDefaults())`.
-4. Create your secrets file (never commit it):
-   ```bash
-   cp backend.env.example backend.env      # Windows: copy backend.env.example backend.env
+3. Configure backend secrets:
+   Copy `.env.example` to `.env` inside `carbontrack-backend/` (or copy `backend.env.example` to `backend.env` in root):
+   ```powershell
+   copy carbontrack-backend\.env.example carbontrack-backend\.env
    ```
-   Edit `backend.env` and set `DB_PASSWORD`, `JWT_SECRET`, and (for email OTP) `MAIL_USERNAME` / `MAIL_PASSWORD`.
-   `DB_URL` defaults to `jdbc:mysql://localhost:3306/carbontrack`, `DB_USERNAME` to `root`.
-5. Run both with one command:
+   Edit `.env` and fill in your local credentials:
+   - `DB_PASSWORD`: Your local MySQL root password.
+   - `JWT_SECRET`: A long random secret key (minimum 32 characters / 256 bits).
+   - `MAIL_USERNAME` & `MAIL_PASSWORD`: Your Gmail address and 16-character [Google App Password](https://myaccount.google.com/apppasswords) for password reset OTP emails.
+   *(Note: `.env` is git-ignored and will never be committed to source control).*
+4. Run both with one command from the project root:
    ```bash
    npm run dev:full
    ```
-   Backend: http://localhost:8080 - Frontend: http://localhost:5173 (talks to the real API).
+   Backend: http://localhost:8080 — Frontend: http://localhost:5173 (talks to the real API).
 
-Run them separately if you prefer: `npm run backend` and, in another terminal,
-`npm run frontend:full`. Run backend tests with `npm run test:backend`.
-
-You can still start the backend the classic way (`.\mvnw.cmd spring-boot:run` in PowerShell
-after setting `$env:DB_PASSWORD` etc.). The root script simply loads `backend.env` for you.
+Or run them in separate terminals:
+- **Backend:** `cd carbontrack-backend` and run `.\mvnw.cmd spring-boot:run` (Spring Boot automatically loads `carbontrack-backend/.env` via the built-in `DotenvLoader` on startup).
+- **Frontend:** `cd carbontrack-frontend` and run `npm run dev` (or `npm run frontend:full` from root).
+- **Backend tests:** `npm run test:backend` (or `.\mvnw.cmd clean test` in `carbontrack-backend/`).
 
 ## Root commands
 
@@ -128,18 +132,20 @@ backend, so the deployed build runs in demo mode.
 | Problem | Fix |
 |---|---|
 | `carbontrack-backend/pom.xml not found` | Copy the Spring Boot project into `carbontrack-backend/` |
-| Cannot connect to MySQL | Start MySQL, create the `carbontrack` database, check `DB_*` in `backend.env` |
-| Missing JWT secret | Set `JWT_SECRET` in `backend.env` |
-| Email OTP fails | Check `MAIL_USERNAME`/`MAIL_PASSWORD`; Gmail needs an app password |
+| `Access denied for user 'root'@'localhost' (using password: NO)` | Create `.env` in `carbontrack-backend/` (copied from `.env.example`) and set `DB_PASSWORD` |
+| Cannot connect to MySQL | Start MySQL server, create the `carbontrack` database, check `DB_*` in `.env` |
+| Missing JWT secret | Set `JWT_SECRET` in `carbontrack-backend/.env` (minimum 32 characters) |
+| Email OTP fails | Check `MAIL_USERNAME`/`MAIL_PASSWORD`; Gmail accounts require a 16-character App Password |
 | Flyway checksum error | See the V10 note above |
-| CORS error in browser | Add `CorsConfig.java` and `.cors(Customizer.withDefaults())` |
-| Port 8080 or 5173 busy | Stop the other process (the frontend uses a fixed port 5173 because CORS allows only that origin) |
+| CORS error in browser | Add `CorsConfig.java` and `.cors(Customizer.withDefaults())` in backend `SecurityConfig` |
+| `Port 8080 was already in use` | Find and stop the process: `netstat -ano \| findstr :8080` then `Stop-Process -Id <PID> -Force` |
+| Port 5173 busy | Stop other Vite processes; frontend uses fixed port 5173 for CORS compatibility |
 | 401 after login | Check the token field name returned by `/api/auth/login` |
-| Changed `.env` files but nothing changed | Restart the dev server |
+| Changed `.env` files but nothing changed | Restart the Spring Boot backend or Vite dev server |
 
 ## Security notes
 
-- Never commit `backend.env`, passwords, JWT secrets or mail credentials.
+- Never commit `.env` or `backend.env` files, passwords, JWT secrets, or mail credentials.
 - Use HTTPS and managed secrets in production; review OTP rate limits and error responses.
 - Emission results are estimates based on the configured factors, not an environmental audit.
 

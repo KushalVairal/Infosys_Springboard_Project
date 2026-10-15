@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # CarbonTrack — Backend API
 
 CarbonTrack is a backend application for recording everyday activities and estimating their carbon footprint. It provides authentication, protected activity logging, user profile management, emission-factor-based calculations, and password-reset workflows.
@@ -66,24 +65,32 @@ src/main/resources/db/migration/
 
 Do not manually create tables already managed by Flyway.
 
-### 3. Configure environment variables
+### 3. Configure environment variables (.env file)
 
-The application reads database, JWT, and mail credentials from environment variables. **Do not commit real passwords, mail credentials, or JWT secrets to Git.**
+The application automatically loads local configuration from a `.env` file inside `carbontrack-backend/` (or repository root) on startup. **Do not commit real passwords, mail credentials, or JWT secrets to Git.**
 
-For Windows PowerShell, set the values in the terminal you will use to run the application:
+1. Copy the example file:
+   ```bash
+   cp .env.example .env      # Windows PowerShell: copy .env.example .env
+   ```
 
-```powershell
-$env:DB_URL = "jdbc:mysql://localhost:3306/carbontrack"
-$env:DB_USERNAME = "root"
-$env:DB_PASSWORD = "your_mysql_password"
-$env:JWT_SECRET = "replace_with_a_long_random_secret_value"
-$env:MAIL_USERNAME = "your_email@gmail.com"
-$env:MAIL_PASSWORD = "your_email_app_password"
-```
+2. Open `.env` and fill in your local values:
+   ```env
+   # MySQL Database Configuration
+   DB_URL=jdbc:mysql://localhost:3306/carbontrack
+   DB_USERNAME=root
+   DB_PASSWORD=your_actual_mysql_password
 
-Use a strong, randomly generated JWT secret appropriate for your environment. For Gmail SMTP, use an app password when required by your account settings. Keep these values private.
+   # JWT Authentication Secret (minimum 32 characters / 256 bits)
+   JWT_SECRET=your_long_random_jwt_secret_at_least_32_chars
 
-`DB_URL` defaults to `jdbc:mysql://localhost:3306/carbontrack` and `DB_USERNAME` defaults to `root`; set `DB_PASSWORD` and `JWT_SECRET` before starting the app. Mail variables are needed for email-based OTP flows.
+   # Gmail SMTP Credentials (used for sending password reset OTP emails)
+   # For Gmail, create an App Password at: https://myaccount.google.com/apppasswords
+   MAIL_USERNAME=your_email@gmail.com
+   MAIL_PASSWORD=your_16_character_google_app_password
+   ```
+
+> **Note:** `.env` is ignored by Git in `.gitignore`. System environment variables (e.g. `$env:DB_PASSWORD` or production environment variables) are also supported as fallbacks. Mail variables are needed for sending password-reset OTP emails.
 
 ### 4. Run the tests
 
@@ -319,4 +326,3 @@ without first checking the schema and coordinating with the team.
 -   Confirm `mvn clean compile` and `mvn test` results.
 -   Check `git status` and make sure database backups are not staged.
 -   Confirm the intended branch and pull-request status before merging.
->>>>>>> eec714c510ae2dd7060d48dff727a8ca369f3170
