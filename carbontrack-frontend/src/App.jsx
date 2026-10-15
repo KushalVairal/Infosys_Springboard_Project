@@ -1,54 +1,51 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Navbar from './components/Navbar';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import Dashboard from './pages/Dashboard';
-import LogActivity from './pages/LogActivity';
-import Activities from './pages/Activities';
-import Profile from './pages/Profile';
-import './styles/dashboard.css';
+import Layout from './components/Layout';
 
-function AppShell({ children }) {
-  return (
-    <div className="app-shell">
-      <Navbar />
-      {children}
-    </div>
-  );
-}
-
-function PublicOnly({ children }) {
-  const { user } = useAuth();
-  if (user) return <Navigate to="/" replace />;
-  return children;
-}
-
-const Private = ({ children }) => (
-  <ProtectedRoute>
-    <AppShell>{children}</AppShell>
-  </ProtectedRoute>
-);
+// Pages
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import DashboardPage from './pages/DashboardPage';
+import ActivitiesPage from './pages/ActivitiesPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import ProfilePage from './pages/ProfilePage';
+import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
   return (
     <AuthProvider>
-      <HashRouter>
+      <Router>
         <Routes>
-          <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-          <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
-          <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
+          {/* Public routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-          <Route path="/" element={<Private><Dashboard /></Private>} />
-          <Route path="/log" element={<Private><LogActivity /></Private>} />
-          <Route path="/activities" element={<Private><Activities /></Private>} />
-          <Route path="/profile" element={<Private><Profile /></Private>} />
+          {/* Protected routes */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/activities" element={<ActivitiesPage />} />
+            <Route path="/log" element={<Navigate to="/activities" replace />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Fallback */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </HashRouter>
+      </Router>
     </AuthProvider>
   );
 }
+

@@ -1,54 +1,139 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import * as authApi from '../api/auth';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import api from '../api/client';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(
+    () => localStorage.getItem('carbontrack_token') || localStorage.getItem('ct_token') || null
+  );
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('carbontrack_user') || localStorage.getItem('ct_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [profile, setProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('carbontrack_profile');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const stored = localStorage.getItem('ct_user');
-    const token = localStorage.getItem('ct_token');
-    if (stored && token) {
-      try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
+  const fetchProfile = useCallback(async () => {
+    try {
+      const prof = await api.users.getMe();
+      setProfile(prof);
+      localStorage.setItem('carbontrack_profile', JSON.stringify(prof));
+      return prof;
+    } catch (err) {
+      console.warn('Failed to fetch user profile:', err);
+      return null;
     }
-    setLoading(false);
   }, []);
 
-  // Tolerates different backend response shapes:
-  // { token, user } | { accessToken, username, ... } | { jwt, ... }
-  const persist = (data) => {
-    const token = data.token || data.accessToken || data.jwt;
-    if (!token) throw new Error('Login response did not contain a token');
-    const u = data.user || {
-      id: data.id ?? data.userId,
-      username: data.username,
-      email: data.email,
-    };
-    localStorage.setItem('ct_token', token);
-    localStorage.setItem('ct_user', JSON.stringify(u));
-    setUser(u);
-  };
-
-  const login = async (credentials) => persist(await authApi.login(credentials));
-  const register = async (payload) => persist(await authApi.register(payload));
-
-  const logout = () => {
-    localStorage.removeItem('ct_token');
-    localStorage.removeItem('ct_user');
+  const logout = useCallback(() => {
+    setToken(null);
     setUser(null);
+    setProfile(null);
+    localStorage.removeItem('carbontrack_token');
+    localStorage.removeItem('ct_token');
+    localStorage.removeItem('carbontrack_user');
+    localStorage.removeItem('ct_user');
+    localStorage.removeItem('carbontrack_profile');
+  }, []);
+
+  const login = useCallback(async (authToken, authUser) => {
+    if (authToken && typeof authToken === 'object' && !authUser) {
+      const actualToken = authToken.token || authToken.accessToken || authToken.jwt;
+      const actualUser = authToken.user || {
+        id: authToken.id ?? authToken.userId,
+        username: authToken.username,
+        email: authToken.email,
+      };
+      authToken = actualToken;
+      authUser = actualUser;
+    }
+
+    setToken(authToken);
+    setUser(authUser);
+    localStorage.setItem('carbontrack_token', authToken);
+    localStorage.setItem('ct_token', authToken);
+    if (authUser) {
+      localStorage.setItem('carbontrack_user', JSON.stringify(authUser));
+      localStorage.setItem('ct_user', JSON.stringify(authUser));
+    }
+
+    try {
+      const prof = await api.users.getMe();
+      setProfile(prof);
+      localStorage.setItem('carbontrack_profile', JSON.stringify(prof));
+    } catch {
+      // Profile can be fetched subsequently
+    }
+  }, []);
+
+  const register = useCallback(async (payload) => {
+    const res = await api.auth.register(payload);
+    if (res && (res.token || res.accessToken)) {
+      await login(res.token || res.accessToken, res.user || res);
+    }
+    return res;
+  }, [login]);
+
+  const updateProfileState = useCallback((updatedProfile) => {
+    setProfile(updatedProfile);
+    localStorage.setItem('carbontrack_profile', JSON.stringify(updatedProfile));
+  }, []);
+
+  // Hydrate on mount
+  useEffect(() => {
+    async function initAuth() {
+      if (token) {
+        await fetchProfile();
+      }
+      setLoading(false);
+    }
+    initAuth();
+  }, [token, fetchProfile]);
+
+  // Listen for 401 unauthorized events
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+    window.addEventListener('carbontrack:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('carbontrack:unauthorized', handleUnauthorized);
+  }, [logout]);
+
+  const preferredUnit = profile?.preferredUnit || 'KG_CO2E';
+
+  const value = {
+    token,
+    user,
+    profile,
+    loading,
+    isAuthenticated: Boolean(token),
+    preferredUnit,
+    login,
+    register,
+    logout,
+    refreshProfile: fetchProfile,
+    updateProfileState
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
-  return ctx;
-};
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
