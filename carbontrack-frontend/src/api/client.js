@@ -1,6 +1,11 @@
 // Centralized API client for CarbonTrack Spring Boot REST API
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:8080';
+
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 export class ApiError extends Error {
   constructor(message, status = 500, validationErrors = null, data = null) {
@@ -19,7 +24,9 @@ async function request(endpoint, options = {}) {
     ...(options.headers || {})
   };
 
-  const token = localStorage.getItem('carbontrack_token');
+  const token =
+    localStorage.getItem('carbontrack_token') ||
+    localStorage.getItem('ct_token');
   if (token && !headers.Authorization) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -57,8 +64,11 @@ async function request(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    // Handle 401 Unauthorized
     if (response.status === 401) {
+      localStorage.removeItem('carbontrack_token');
+      localStorage.removeItem('ct_token');
+      localStorage.removeItem('carbontrack_user');
+      localStorage.removeItem('ct_user');
       window.dispatchEvent(new CustomEvent('carbontrack:unauthorized'));
     }
 
@@ -167,4 +177,6 @@ export const api = {
   }
 };
 
+export const apiClient = api;
 export default api;
+

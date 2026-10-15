@@ -4,10 +4,12 @@ import api from '../api/client';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('carbontrack_token') || null);
+  const [token, setToken] = useState(
+    () => localStorage.getItem('carbontrack_token') || localStorage.getItem('ct_token') || null
+  );
   const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('carbontrack_user');
+      const saved = localStorage.getItem('carbontrack_user') || localStorage.getItem('ct_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -40,15 +42,32 @@ export function AuthProvider({ children }) {
     setUser(null);
     setProfile(null);
     localStorage.removeItem('carbontrack_token');
+    localStorage.removeItem('ct_token');
     localStorage.removeItem('carbontrack_user');
+    localStorage.removeItem('ct_user');
     localStorage.removeItem('carbontrack_profile');
   }, []);
 
   const login = useCallback(async (authToken, authUser) => {
+    if (authToken && typeof authToken === 'object' && !authUser) {
+      const actualToken = authToken.token || authToken.accessToken || authToken.jwt;
+      const actualUser = authToken.user || {
+        id: authToken.id ?? authToken.userId,
+        username: authToken.username,
+        email: authToken.email,
+      };
+      authToken = actualToken;
+      authUser = actualUser;
+    }
+
     setToken(authToken);
     setUser(authUser);
     localStorage.setItem('carbontrack_token', authToken);
-    localStorage.setItem('carbontrack_user', JSON.stringify(authUser));
+    localStorage.setItem('ct_token', authToken);
+    if (authUser) {
+      localStorage.setItem('carbontrack_user', JSON.stringify(authUser));
+      localStorage.setItem('ct_user', JSON.stringify(authUser));
+    }
 
     try {
       const prof = await api.users.getMe();
@@ -58,6 +77,14 @@ export function AuthProvider({ children }) {
       // Profile can be fetched subsequently
     }
   }, []);
+
+  const register = useCallback(async (payload) => {
+    const res = await api.auth.register(payload);
+    if (res && (res.token || res.accessToken)) {
+      await login(res.token || res.accessToken, res.user || res);
+    }
+    return res;
+  }, [login]);
 
   const updateProfileState = useCallback((updatedProfile) => {
     setProfile(updatedProfile);
@@ -94,6 +121,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(token),
     preferredUnit,
     login,
+    register,
     logout,
     refreshProfile: fetchProfile,
     updateProfileState

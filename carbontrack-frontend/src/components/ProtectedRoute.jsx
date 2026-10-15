@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -15,9 +15,11 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  if (!isAuthenticated) {
+  const isAuthed = isAuthenticated ?? Boolean(user);
+  if (!isAuthed) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;
 }
+

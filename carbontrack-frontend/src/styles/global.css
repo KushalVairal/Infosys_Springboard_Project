@@ -1,0 +1,35 @@
+:root {
+  --bg: #f4f7f5;
+  --surface: #ffffff;
+  --text: #1f2d24;
+  --muted: #6b7b70;
+  --primary: #2e7d32;
+  --primary-dark: #1b5e20;
+  --accent: #66bb6a;
+  --danger: #d32f2f;
+  --warning: #f57c00;
+  --border: #dfe7e0;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --radius: 10px;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; }
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button {
+  font-family: inherit; font-size: 0.95rem; font-weight: 500;
+  padding: 0.65rem 1.2rem; border: none; border-radius: var(--radius);
+  background: var(--primary); color: white; cursor: pointer; transition: background 0.15s;
+}
+button:hover:not(:disabled) { background: var(--primary-dark); }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+input, select, textarea {
+  font-family: inherit; font-size: 0.95rem; padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: white; width: 100%; transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+.card { background: var(--surface); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
+.error { color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem; }
+.success { color: var(--primary); font-size: 0.9rem; }

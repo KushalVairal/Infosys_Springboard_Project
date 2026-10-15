@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/client';
+import api, { USE_MOCK } from '../api/client';
 import { LeafIcon } from './NatureIcons';
 import { HealthBadge } from './StatusBadge';
 import { Menu, X, LogOut } from 'lucide-react';
@@ -62,6 +62,11 @@ export default function Navbar({ onToggleSidebar }) {
               Carbon<span className="brand-accent">Track</span>
             </span>
             <span className="brand-pill">v1.0</span>
+            {USE_MOCK && (
+              <span className="brand-pill" style={{ background: '#fef08a', color: '#854d0e', marginLeft: '6px' }}>
+                demo mode
+              </span>
+            )}
           </Link>
         </div>
 
