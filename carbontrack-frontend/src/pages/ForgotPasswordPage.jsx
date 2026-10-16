@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 import api from '../api/client';
 import { LeafIcon } from '../components/NatureIcons';
-import { Mail, KeyRound, Lock, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Mail, KeyRound, Lock, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft, Sun, Moon } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const { toggleTheme, isDark } = useTheme();
 
   // Steps: 1 = Request OTP, 2 = Verify OTP, 3 = Reset Password, 4 = Done
   const [step, setStep] = useState(1);
@@ -106,6 +108,18 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="auth-page-container">
+      <div className="auth-theme-toggle-wrapper">
+        <button
+          type="button"
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          aria-label="Toggle theme"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
+
       <div className="auth-card-wrapper">
         <div className="auth-card-header">
           <Link to="/" className="auth-brand-link">
@@ -298,7 +312,7 @@ export default function ForgotPasswordPage() {
         {step === 4 && (
           <div className="reset-completed-box">
             <div className="completed-icon-circle">
-              <CheckCircle2 size={40} color="#244B35" />
+              <CheckCircle2 size={40} color="var(--forest-primary)" />
             </div>
             <h3>Password Successfully Reset!</h3>
             <p>You can now log in using your newly created password.</p>

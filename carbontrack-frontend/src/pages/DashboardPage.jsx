@@ -26,18 +26,14 @@ import {
   Pie,
   Cell
 } from 'recharts';
-
-const CATEGORY_COLORS = {
-  TRANSPORT: '#48724D',
-  ELECTRICITY: '#D9822B',
-  FOOD: '#668F63',
-  SHOPPING: '#3C6E71',
-  OTHER: '#889D8E'
-};
+import { getCategoryColor } from '../data/categories';
+import { useTheme } from '../context/ThemeContext';
 
 export default function DashboardPage() {
   const { user, profile, preferredUnit } = useAuth();
+  const { isDark } = useTheme();
   const [activities, setActivities] = useState([]);
+  const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -46,13 +42,18 @@ export default function DashboardPage() {
     async function loadData() {
       try {
         setLoading(true);
-        const data = await api.activities.getMyActivities();
+        const [activityData, goalData] = await Promise.all([
+          api.activities.getMyActivities().catch(() => []),
+          api.goals.getMyGoals().catch(() => [])
+        ]);
+
         if (isMounted) {
-          setActivities(Array.isArray(data) ? data : []);
+          setActivities(Array.isArray(activityData) ? activityData : []);
+          setGoals(Array.isArray(goalData) ? goalData : []);
           setError(null);
         }
       } catch (err) {
-        if (isMounted) setError(err.message || 'Unable to load activity history');
+        if (isMounted) setError(err.message || 'Unable to load dashboard data');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -62,6 +63,10 @@ export default function DashboardPage() {
       isMounted = false;
     };
   }, []);
+
+  const activeGoal = useMemo(() => {
+    return goals.find((g) => g.status === 'ACTIVE') || goals[0] || null;
+  }, [goals]);
 
   // Compute metrics from actual activities
   const metrics = useMemo(() => {
@@ -138,9 +143,14 @@ export default function DashboardPage() {
       }));
   }, [metrics.catMap]);
 
-  // Monthly goal target benchmark (150 kg standard monthly budget)
-  const monthlyGoalTarget = 150;
-  const goalPercentage = Math.min(Math.round((metrics.totalKg / monthlyGoalTarget) * 100), 100);
+  // Monthly goal target benchmark (computed from active goal or 150 kg default)
+  const isTonnes = preferredUnit === 'TONNES_CO2E';
+  const targetBudgetKg = activeGoal ? Number(activeGoal.targetCo2eKg) : 150;
+  const currentBudgetKg = activeGoal ? Number(activeGoal.currentCo2eKg) : metrics.totalKg;
+  const goalPercentage = Math.min(
+    Math.round(activeGoal ? activeGoal.progressPercentage : (metrics.totalKg / 150) * 100),
+    100
+  );
 
   if (loading) {
     return (
@@ -182,7 +192,7 @@ export default function DashboardPage() {
           <div className="metric-header">
             <span className="metric-title">Total Emissions</span>
             <span className="metric-icon-bubble">
-              <Flame size={20} color="#244B35" />
+              <Flame size={20} color="var(--forest-primary)" />
             </span>
           </div>
           <div className="metric-body">
@@ -198,7 +208,7 @@ export default function DashboardPage() {
           <div className="metric-header">
             <span className="metric-title">Activities Logged</span>
             <span className="metric-icon-bubble">
-              <Activity size={20} color="#48724D" />
+              <Activity size={20} color="var(--forest-primary)" />
             </span>
           </div>
           <div className="metric-body">
@@ -214,7 +224,7 @@ export default function DashboardPage() {
           <div className="metric-header">
             <span className="metric-title">Primary Emission Source</span>
             <span className="metric-icon-bubble">
-              <Layers size={20} color="#D9822B" />
+              <Layers size={20} color="var(--accent-amber)" />
             </span>
           </div>
           <div className="metric-body">
@@ -231,14 +241,16 @@ export default function DashboardPage() {
 
         <div className="metric-card">
           <div className="metric-header">
-            <span className="metric-title">Monthly Benchmark</span>
+            <span className="metric-title">{activeGoal ? 'Active Goal Progress' : 'Monthly Benchmark'}</span>
             <span className="metric-icon-bubble">
-              <Target size={20} color="#244B35" />
+              <Target size={20} color="var(--forest-primary)" />
             </span>
           </div>
           <div className="metric-body">
             <span className="metric-value">{goalPercentage}%</span>
-            <span className="metric-unit">of 150 kg budget</span>
+            <span className="metric-unit">
+              of {isTonnes ? (targetBudgetKg / 1000).toFixed(2) : targetBudgetKg.toFixed(0)} {isTonnes ? 't' : 'kg'} budget
+            </span>
           </div>
           <div className="metric-footer">
             <div className="mini-progress-bar">
@@ -269,39 +281,43 @@ export default function DashboardPage() {
           <div className="chart-container-box">
             {trendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={trendData} margin={{ top: 10, right: 20, left: 15, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCo2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#48724D" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#48724D" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor={isDark ? '#3DA868' : '#246B43'} stopOpacity={isDark ? 0.45 : 0.4} />
+                      <stop offset="95%" stopColor={isDark ? '#3DA868' : '#246B43'} stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <XAxis
                     dataKey="date"
-                    stroke="#889D8E"
+                    stroke={isDark ? '#A3BBAA' : '#556B5B'}
                     fontSize={12}
                     tickLine={false}
-                    axisLine={{ stroke: '#E5F0DF' }}
+                    axisLine={{ stroke: isDark ? '#273B2F' : '#E5F0DF' }}
                   />
                   <YAxis
-                    stroke="#889D8E"
+                    stroke={isDark ? '#A3BBAA' : '#556B5B'}
                     fontSize={12}
                     tickLine={false}
-                    axisLine={{ stroke: '#E5F0DF' }}
+                    width={45}
+                    axisLine={{ stroke: isDark ? '#273B2F' : '#E5F0DF' }}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#FFFFFF',
+                      backgroundColor: isDark ? '#17241D' : '#FFFFFF',
                       borderRadius: '12px',
-                      border: '1px solid #D7E6CE',
-                      boxShadow: '0 8px 20px rgba(36, 75, 53, 0.1)'
+                      border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                      color: isDark ? '#EDF5EE' : '#1D2E24',
+                      boxShadow: 'var(--shadow-md)'
                     }}
+                    itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
+                    labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
                     formatter={(val) => [`${val} kg CO₂e`, 'Emissions']}
                   />
                   <Area
                     type="monotone"
                     dataKey="co2e"
-                    stroke="#244B35"
+                    stroke={isDark ? '#3DA868' : 'var(--forest-primary)'}
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#colorCo2)"
@@ -343,17 +359,21 @@ export default function DashboardPage() {
                       {categoryChartData.map((entry) => (
                         <Cell
                           key={`cell-${entry.key}`}
-                          fill={CATEGORY_COLORS[entry.key] || '#48724D'}
+                          fill={getCategoryColor(entry.key, isDark)}
                         />
                       ))}
                     </Pie>
                     <Tooltip
                       formatter={(val) => [`${val} kg`, 'Total']}
                       contentStyle={{
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: isDark ? '#17241D' : '#FFFFFF',
                         borderRadius: '8px',
-                        border: '1px solid #D7E6CE'
+                        border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                        color: isDark ? '#EDF5EE' : '#1D2E24',
+                        boxShadow: 'var(--shadow-md)'
                       }}
+                      itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
+                      labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -363,7 +383,7 @@ export default function DashboardPage() {
                     <div key={item.key} className="legend-row">
                       <span
                         className="legend-color-box"
-                        style={{ backgroundColor: CATEGORY_COLORS[item.key] || '#48724D' }}
+                        style={{ backgroundColor: getCategoryColor(item.key, isDark) }}
                       />
                       <span className="legend-name">{item.name}</span>
                       <span className="legend-amount">{item.value} kg</span>
@@ -437,23 +457,44 @@ export default function DashboardPage() {
 
       {/* Environmental Goals & Benchmarks Card */}
       <div className="dashboard-card goals-benchmark-card">
-        <div className="card-header-clean">
+        <div className="card-header-with-action">
           <div className="goals-header-left">
             <div className="goals-icon-circle">
-              <Award size={22} color="#244B35" />
+              <Award size={22} color="var(--forest-primary)" />
             </div>
             <div>
-              <h2 className="card-heading">Eco Milestone & Goal Progress</h2>
-              <p className="card-subheading">Personal emissions target: Keep monthly footprint under 150 kg CO₂e</p>
+              <h2 className="card-heading">{activeGoal ? activeGoal.title : 'Eco Milestone & Goal Progress'}</h2>
+              <p className="card-subheading">
+                {activeGoal
+                  ? `Active target window: ${activeGoal.startDate} to ${activeGoal.endDate}`
+                  : 'Personal emissions target: Keep monthly footprint under 150 kg CO₂e'}
+              </p>
             </div>
           </div>
+          <Link to="/goals" className="btn btn-secondary btn-sm">
+            <span>{activeGoal ? 'View All Goals' : 'Set Custom Goal'}</span>
+            <ArrowRight size={16} />
+          </Link>
         </div>
 
         <div className="goals-body">
           <div className="goal-meter-row">
             <div className="goal-meter-info">
-              <span>Current monthly total: <strong>{metrics.totalKg.toFixed(1)} kg</strong></span>
-              <span>Budget remaining: <strong>{Math.max(0, 150 - metrics.totalKg).toFixed(1)} kg</strong></span>
+              <span>
+                Current accumulated:{' '}
+                <strong>
+                  {isTonnes ? (currentBudgetKg / 1000).toFixed(3) : currentBudgetKg.toFixed(1)} {isTonnes ? 't CO₂e' : 'kg CO₂e'}
+                </strong>
+              </span>
+              <span>
+                Budget remaining:{' '}
+                <strong>
+                  {isTonnes
+                    ? Math.max(0, (targetBudgetKg - currentBudgetKg) / 1000).toFixed(3)
+                    : Math.max(0, targetBudgetKg - currentBudgetKg).toFixed(1)}{' '}
+                  {isTonnes ? 't CO₂e' : 'kg CO₂e'}
+                </strong>
+              </span>
             </div>
             <div className="goal-meter-track">
               <div

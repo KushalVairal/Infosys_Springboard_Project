@@ -15,19 +15,13 @@ import {
   CartesianGrid
 } from 'recharts';
 import {
-  Info,
   AlertCircle
 } from 'lucide-react';
-
-const SECTOR_COLORS = {
-  TRANSPORT: '#48724D',
-  ELECTRICITY: '#D9822B',
-  FOOD: '#668F63',
-  SHOPPING: '#3C6E71',
-  OTHER: '#889D8E'
-};
+import { getCategoryColor, getCategoryForActivityType } from '../data/categories';
+import { useTheme } from '../context/ThemeContext';
 
 export default function AnalyticsPage() {
+  const { isDark } = useTheme();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -70,15 +64,20 @@ export default function AnalyticsPage() {
     const map = {};
     activities.forEach((act) => {
       const type = act.activityType || 'Unknown';
-      map[type] = (map[type] || 0) + (Number(act.co2eKg) || 0);
+      const cat = (act.category || getCategoryForActivityType(type)).toUpperCase();
+      if (!map[type]) {
+        map[type] = { type, category: cat, total: 0 };
+      }
+      map[type].total += (Number(act.co2eKg) || 0);
     });
 
-    return Object.entries(map)
-      .sort((a, b) => b[1] - a[1])
+    return Object.values(map)
+      .sort((a, b) => b.total - a.total)
       .slice(0, 7)
-      .map(([type, total]) => ({
-        type,
-        emissions: Number(total.toFixed(2))
+      .map((item) => ({
+        type: item.type,
+        category: item.category,
+        emissions: Number(item.total.toFixed(2))
       }));
   }, [activities]);
 
@@ -128,25 +127,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Honest Backend Architectural Notice */}
-      <div className="backend-gap-notice-card">
-        <div className="gap-notice-header">
-          <Info size={20} color="#244B35" />
-          <span className="gap-notice-title">System Architecture & Backend API Transparency</span>
-        </div>
-        <p className="gap-notice-body">
-          The charts below are computed client-side in real time from your authentic activity log entries (<code>GET /api/activities/me</code>).
-          Dedicated backend server-side aggregate endpoints (e.g., <code>GET /api/analytics/summary</code>, <code>GET /api/analytics/trends</code>) are not yet implemented in the Spring Boot backend.
-        </p>
-        <div className="gap-recommendations">
-          <strong>Recommended Backend Enhancements for Milestone 2:</strong>
-          <ul>
-            <li>Add <code>AnalyticsController.java</code> with SQL database rollups (<code>GROUP BY DATE_FORMAT(log_date, '%Y-%m')</code>)</li>
-            <li>Implement organizational peer benchmarking queries</li>
-            <li>Add automated annual carbon accounting PDF/CSV export endpoints</li>
-          </ul>
-        </div>
-      </div>
+
 
       {activities.length > 0 ? (
         <>
@@ -203,17 +184,21 @@ export default function AnalyticsPage() {
                     {sectorData.map((entry) => (
                       <Cell
                         key={`sector-${entry.key}`}
-                        fill={SECTOR_COLORS[entry.key] || '#48724D'}
+                        fill={getCategoryColor(entry.key, isDark)}
                       />
                     ))}
                   </Pie>
                   <Tooltip
                     formatter={(val) => [`${val} kg CO₂e`, 'Emissions']}
                     contentStyle={{
-                      backgroundColor: '#FFFFFF',
+                      backgroundColor: isDark ? '#17241D' : '#FFFFFF',
                       borderRadius: '8px',
-                      border: '1px solid #D7E6CE'
+                      border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                      color: isDark ? '#EDF5EE' : '#1D2E24',
+                      boxShadow: 'var(--shadow-md)'
                     }}
+                    itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
+                    labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -222,7 +207,7 @@ export default function AnalyticsPage() {
                   <div key={s.key} className="legend-row">
                     <span
                       className="legend-color-box"
-                      style={{ backgroundColor: SECTOR_COLORS[s.key] || '#48724D' }}
+                      style={{ backgroundColor: getCategoryColor(s.key, isDark) }}
                     />
                     <span className="legend-name">{s.name}</span>
                     <span className="legend-amount">{s.emissions} kg</span>
@@ -247,27 +232,38 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart
                     data={activityTypeBreakdown}
-                    margin={{ top: 20, right: 10, left: -10, bottom: 25 }}
+                    margin={{ top: 20, right: 20, left: 15, bottom: 35 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E5F0DF" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#273B2F' : '#E5F0DF'} vertical={false} />
                     <XAxis
                       dataKey="type"
-                      stroke="#889D8E"
+                      stroke={isDark ? '#A3BBAA' : '#556B5B'}
                       fontSize={11}
                       angle={-20}
                       textAnchor="end"
                       tickLine={false}
                     />
-                    <YAxis stroke="#889D8E" fontSize={12} tickLine={false} />
+                    <YAxis stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={12} tickLine={false} width={45} />
                     <Tooltip
                       formatter={(val) => [`${val} kg CO₂e`, 'Emissions']}
                       contentStyle={{
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: isDark ? '#17241D' : '#FFFFFF',
                         borderRadius: '8px',
-                        border: '1px solid #D7E6CE'
+                        border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                        color: isDark ? '#EDF5EE' : '#1D2E24',
+                        boxShadow: 'var(--shadow-md)'
                       }}
+                      itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
+                      labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
                     />
-                    <Bar dataKey="emissions" fill="#48724D" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="emissions" radius={[6, 6, 0, 0]}>
+                      {activityTypeBreakdown.map((entry) => (
+                        <Cell
+                          key={`impact-${entry.type}`}
+                          fill={getCategoryColor(entry.category, isDark)}
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -284,19 +280,23 @@ export default function AnalyticsPage() {
 
               <div className="chart-container-box">
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={monthlyRollup} margin={{ top: 20, right: 10, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E5F0DF" vertical={false} />
-                    <XAxis dataKey="month" stroke="#889D8E" fontSize={12} tickLine={false} />
-                    <YAxis stroke="#889D8E" fontSize={12} tickLine={false} />
+                  <BarChart data={monthlyRollup} margin={{ top: 20, right: 20, left: 15, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#273B2F' : '#E5F0DF'} vertical={false} />
+                    <XAxis dataKey="month" stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={12} tickLine={false} />
+                    <YAxis stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={12} tickLine={false} width={45} />
                     <Tooltip
                       formatter={(val) => [`${val} kg CO₂e`, 'Emissions']}
                       contentStyle={{
-                        backgroundColor: '#FFFFFF',
+                        backgroundColor: isDark ? '#17241D' : '#FFFFFF',
                         borderRadius: '8px',
-                        border: '1px solid #D7E6CE'
+                        border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                        color: isDark ? '#EDF5EE' : '#1D2E24',
+                        boxShadow: 'var(--shadow-md)'
                       }}
+                      itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
+                      labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
                     />
-                    <Bar dataKey="emissions" fill="#D9822B" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="emissions" fill={isDark ? '#3DA868' : '#244B35'} radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

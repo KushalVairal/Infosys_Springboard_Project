@@ -1,9 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Activity, BarChart3, User, Sparkles, X } from 'lucide-react';
+import { LayoutDashboard, Activity, BarChart3, User, Sparkles, X, Target, Sun, Moon, LogOut } from 'lucide-react';
 import { LeafIcon } from './NatureIcons';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Sidebar({ isOpen, onClose }) {
+  const { logout } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
   const navItems = [
     {
       to: '/dashboard',
@@ -21,6 +25,12 @@ export default function Sidebar({ isOpen, onClose }) {
       to: '/analytics',
       label: 'Analytics',
       icon: <BarChart3 size={20} />,
+      badge: null
+    },
+    {
+      to: '/goals',
+      label: 'Sustainability Goals',
+      icon: <Target size={20} />,
       badge: null
     },
     {
@@ -78,6 +88,30 @@ export default function Sidebar({ isOpen, onClose }) {
               Replacing 1 short car trip per week with walking or cycling saves over 100 kg CO₂e every year.
             </p>
           </div>
+        </div>
+
+        <div className="sidebar-mobile-user-actions">
+          <button
+            type="button"
+            className="sidebar-mobile-theme-btn"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            <span>{isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}</span>
+          </button>
+          <button
+            type="button"
+            className="sidebar-mobile-logout-btn"
+            onClick={() => {
+              if (onClose) onClose();
+              logout();
+            }}
+            aria-label="Logout"
+          >
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
         </div>
       </aside>
     </>

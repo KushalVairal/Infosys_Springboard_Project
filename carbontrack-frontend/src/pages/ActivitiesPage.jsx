@@ -243,7 +243,7 @@ export default function ActivitiesPage() {
       {lastCreated && (
         <div className="activity-success-banner">
           <div className="success-banner-content">
-            <CheckCircle2 size={20} color="#244B35" />
+            <CheckCircle2 size={20} color="var(--forest-primary)" />
             <div>
               <strong>Activity recorded successfully!</strong>
               <p>
@@ -409,7 +409,7 @@ export default function ActivitiesPage() {
             <div className="modal-header">
               <div className="modal-title-group">
                 <span className="modal-icon-bubble">
-                  <Plus size={20} color="#244B35" />
+                  <Plus size={20} color="var(--forest-primary)" />
                 </span>
                 <div>
                   <h2 className="modal-title">Record Activity</h2>
@@ -544,7 +544,7 @@ export default function ActivitiesPage() {
               )}
 
               <div className="test-data-disclaimer">
-                <Info size={14} color="#668F63" />
+                <Info size={14} color="var(--text-muted)" />
                 <span>
                   Using development test factors from Spring Boot database migration <code>V10</code>.
                 </span>

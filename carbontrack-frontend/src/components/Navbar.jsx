@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/client';
+import api, { getProfileImageUrl } from '../api/client';
 import { LeafIcon } from './NatureIcons';
-import { Menu, X, LogOut } from 'lucide-react';
+import { Menu, X, LogOut, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Navbar({ onToggleSidebar }) {
   const { isAuthenticated, user, profile, logout, preferredUnit } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [, setHealthStatus] = useState('UNKNOWN');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -67,6 +70,16 @@ export default function Navbar({ onToggleSidebar }) {
         <div className="navbar-right">
           {isAuthenticated ? (
             <div className="user-nav-cluster">
+              <button
+                type="button"
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
               <div className="unit-indicator-pill" title="User preferred emission measurement unit">
                 <span className="unit-dot" />
                 <span>{unitLabel}</span>
@@ -74,8 +87,14 @@ export default function Navbar({ onToggleSidebar }) {
 
               <Link to="/profile" className="user-profile-pill" title="View & Edit Profile">
                 <div className="user-avatar-initials">
-                  {profile?.profileImageUrl ? (
-                    <img src={profile.profileImageUrl} alt="Avatar" className="user-avatar-img" />
+                  {profile?.profileImageUrl && !avatarError ? (
+                    <img
+                      key={profile?.profileImageUrl}
+                      src={getProfileImageUrl(profile.profileImageUrl)}
+                      alt="Avatar"
+                      className="user-avatar-img"
+                      onError={() => setAvatarError(true)}
+                    />
                   ) : (
                     <span>{displayName.charAt(0).toUpperCase()}</span>
                   )}
@@ -98,6 +117,16 @@ export default function Navbar({ onToggleSidebar }) {
             </div>
           ) : (
             <div className="public-nav-actions">
+              <button
+                type="button"
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
               <Link
                 to="/login"
                 className={`btn btn-ghost ${location.pathname === '/login' ? 'active' : ''}`}
@@ -110,16 +139,27 @@ export default function Navbar({ onToggleSidebar }) {
             </div>
           )}
 
-          {/* Mobile hamburger for public view */}
+          {/* Mobile controls for public view */}
           {!isAuthenticated && (
-            <button
-              type="button"
-              className="mobile-menu-trigger"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle navigation menu"
-            >
-              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
+            <div className="public-mobile-controls">
+              <button
+                type="button"
+                className="theme-toggle-btn public-mobile-theme-btn"
+                onClick={toggleTheme}
+                title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              <button
+                type="button"
+                className="mobile-menu-trigger"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle navigation menu"
+              >
+                {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+            </div>
           )}
         </div>
       </div>

@@ -12,6 +12,9 @@ target/
 !.env.example
 !*.env.example
 
+# Uploaded user media
+uploads/
+
 
 ### STS ###
 .apt_generated

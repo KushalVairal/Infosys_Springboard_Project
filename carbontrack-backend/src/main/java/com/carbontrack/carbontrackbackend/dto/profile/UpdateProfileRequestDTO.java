@@ -26,8 +26,8 @@ public class UpdateProfileRequestDTO {
 
     @Size(max = 2048, message = "Profile image URL is too long")
     @Pattern(
-            regexp = "^$|^https?://\\S+$",
-            message = "Profile image must be an HTTP or HTTPS URL"
+            regexp = "^$|^(https?://|/api/users/profile-image/).*$",
+            message = "Profile image must be an HTTP, HTTPS URL or internal image reference"
     )
     private String profileImageUrl;
 
