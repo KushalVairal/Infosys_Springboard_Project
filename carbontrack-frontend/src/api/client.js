@@ -17,6 +17,23 @@ export class ApiError extends Error {
   }
 }
 
+export function getProfileImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('data:')
+  ) {
+    return trimmed;
+  }
+  const cleanBase = API_BASE_URL.replace(/\/+$/, '');
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${cleanBase}${cleanPath}`;
+}
+
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = {
@@ -156,7 +173,72 @@ export const api = {
           preferredUnit: preferredUnit || 'KG_CO2E',
           goalVisibility: goalVisibility ?? true
         })
-      })
+      }),
+
+    uploadProfileImage: async (file) => {
+      const url = `${API_BASE_URL}/api/users/profile-image`;
+      const formData = new FormData();
+      formData.append('file', file);
+      const token =
+        localStorage.getItem('carbontrack_token') ||
+        localStorage.getItem('ct_token');
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: formData
+        });
+      } catch {
+        throw new ApiError(
+          `Unable to reach the backend server at ${API_BASE_URL}. Ensure Spring Boot is running on port 8080.`,
+          0
+        );
+      }
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new ApiError(data?.message || 'Failed to upload profile image', response.status, null, data);
+      }
+      return data;
+    },
+
+    deleteProfileImage: () => request('/api/users/profile-image', { method: 'DELETE' })
+  },
+
+  // Sustainability Goals endpoints
+  goals: {
+    getMyGoals: () => request('/api/goals', { method: 'GET' }),
+
+    create: ({ title, description, targetCo2eKg, startDate, endDate }) =>
+      request('/api/goals', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          description: description || '',
+          targetCo2eKg: Number(targetCo2eKg),
+          startDate,
+          endDate
+        })
+      }),
+
+    update: (id, { title, description, targetCo2eKg, startDate, endDate, status }) =>
+      request(`/api/goals/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title,
+          description: description || '',
+          targetCo2eKg: Number(targetCo2eKg),
+          startDate,
+          endDate,
+          status: status || 'ACTIVE'
+        })
+      }),
+
+    delete: (id) => request(`/api/goals/${id}`, { method: 'DELETE' })
   },
 
   // Activity Log endpoints

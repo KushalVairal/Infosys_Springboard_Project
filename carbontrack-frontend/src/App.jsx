@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -13,12 +14,14 @@ import DashboardPage from './pages/DashboardPage';
 import ActivitiesPage from './pages/ActivitiesPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
+import GoalsPage from './pages/GoalsPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
@@ -38,6 +41,7 @@ export default function App() {
             <Route path="/activities" element={<ActivitiesPage />} />
             <Route path="/log" element={<Navigate to="/activities" replace />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
@@ -46,6 +50,7 @@ export default function App() {
         </Routes>
       </Router>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 

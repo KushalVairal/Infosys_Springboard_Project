@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import api from '../api/client';
 import { LeafIcon } from '../components/NatureIcons';
-import { Mail, Lock, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, AlertCircle, ArrowRight, CheckCircle2, Sun, Moon } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -62,6 +64,18 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page-container">
+      <div className="auth-theme-toggle-wrapper">
+        <button
+          type="button"
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          aria-label="Toggle theme"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
+
       <div className="auth-card-wrapper">
         <div className="auth-card-header">
           <Link to="/" className="auth-brand-link">

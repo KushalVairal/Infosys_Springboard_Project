@@ -1,27 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/client';
+import { useTheme } from '../context/ThemeContext';
+import api, { getProfileImageUrl } from '../api/client';
 import LoadingSpinner from '../components/LoadingSpinner';
 import {
   User,
   Mail,
   Phone,
   MapPin,
-  Image,
+  Upload,
+  Trash2,
   CheckCircle2,
   AlertCircle,
   Save,
   Shield,
-  Calendar
+  Calendar,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export default function ProfilePage() {
   const { profile, updateProfileState } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const fileInputRef = useRef(null);
+
   const [loading, setLoading] = useState(!profile);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [generalError, setGeneralError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [localPreviewUrl, setLocalPreviewUrl] = useState('');
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   const [formData, setFormData] = useState(() => ({
     username: profile?.username || '',
@@ -79,6 +90,70 @@ export default function ProfilePage() {
     if (successMessage) setSuccessMessage('');
   };
 
+  const handleFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowed.includes(file.type)) {
+      setUploadError('Only JPG, PNG, WEBP, or GIF images are supported.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image file size must be less than 5MB.');
+      return;
+    }
+
+    setUploadError('');
+    setIsUploading(true);
+    setImageLoadError(false);
+
+    // Provide instant visual feedback from selected file
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreviewUrl(objectUrl);
+
+    try {
+      const updated = await api.users.uploadProfileImage(file);
+      setFormData((prev) => ({ ...prev, profileImageUrl: updated.profileImageUrl || '' }));
+      updateProfileState(updated);
+      setSuccessMessage('Profile photo updated successfully!');
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (err) {
+      setLocalPreviewUrl('');
+      setUploadError(err.message || 'Failed to upload photo. Please try again.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setIsUploading(true);
+    setUploadError('');
+    setLocalPreviewUrl('');
+    setImageLoadError(false);
+
+    try {
+      const updated = await api.users.deleteProfileImage();
+      setFormData((prev) => ({ ...prev, profileImageUrl: '' }));
+      updateProfileState(updated);
+      setSuccessMessage('Profile photo removed.');
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (err) {
+      setUploadError(err.message || 'Failed to remove photo.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Clean up object URLs on unmount or replacement
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    };
+  }, [localPreviewUrl]);
+
   const validate = () => {
     const errors = {};
     if (!formData.username.trim()) {
@@ -100,13 +175,6 @@ export default function ProfilePage() {
 
     if (formData.location && formData.location.length > 150) {
       errors.location = 'Location cannot exceed 150 characters';
-    }
-
-    if (formData.profileImageUrl) {
-      const urlRegex = /^https?:\/\/\S+$/;
-      if (!urlRegex.test(formData.profileImageUrl.trim())) {
-        errors.profileImageUrl = 'Profile image must be a valid HTTP or HTTPS web URL';
-      }
     }
 
     setFieldErrors(errors);
@@ -164,21 +232,23 @@ export default function ProfilePage() {
       })
     : 'Active member';
 
+  const activePhotoUrl = localPreviewUrl || getProfileImageUrl(formData.profileImageUrl);
+  const showAvatarImage = Boolean(activePhotoUrl && !imageLoadError);
+  const avatarInitial = (formData.fullName || formData.username || 'U').charAt(0).toUpperCase();
+
   return (
     <div className="profile-page">
       <div className="profile-header-card">
         <div className="profile-avatar-large">
-          {formData.profileImageUrl ? (
+          {showAvatarImage ? (
             <img
-              src={formData.profileImageUrl}
+              src={activePhotoUrl}
               alt="Avatar preview"
               className="avatar-img-large"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
+              onError={() => setImageLoadError(true)}
             />
           ) : (
-            <span>{(formData.fullName || formData.username || 'U').charAt(0).toUpperCase()}</span>
+            <span>{avatarInitial}</span>
           )}
         </div>
 
@@ -341,27 +411,56 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="prof-imgUrl" className="form-label">
-                Profile Image URL
-              </label>
-              <div className={`input-with-icon ${fieldErrors.profileImageUrl ? 'has-error' : ''}`}>
-                <span className="input-icon">
-                  <Image size={18} />
-                </span>
-                <input
-                  id="prof-imgUrl"
-                  name="profileImageUrl"
-                  type="url"
-                  placeholder="https://example.com/avatar.jpg"
-                  value={formData.profileImageUrl}
-                  onChange={handleChange}
-                  disabled={isSaving}
-                />
+            <div className="form-group profile-upload-group">
+              <label className="form-label">Profile Photo</label>
+              <div className="profile-photo-control">
+                <div className="profile-photo-preview">
+                  {showAvatarImage ? (
+                    <img
+                      src={activePhotoUrl}
+                      alt="Profile preview"
+                      className="photo-preview-img"
+                      onError={() => setImageLoadError(true)}
+                    />
+                  ) : (
+                    <div className="photo-preview-placeholder">
+                      <span>{avatarInitial}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="profile-photo-actions">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    style={{ display: 'none' }}
+                    onChange={handleFileSelected}
+                    disabled={isUploading || isSaving}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading || isSaving}
+                  >
+                    <Upload size={16} />
+                    <span>{isUploading ? 'Uploading…' : formData.profileImageUrl ? 'Change Photo' : 'Upload Photo'}</span>
+                  </button>
+                  {formData.profileImageUrl && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm text-coral"
+                      onClick={handleRemovePhoto}
+                      disabled={isUploading || isSaving}
+                    >
+                      <Trash2 size={16} />
+                      <span>Remove Photo</span>
+                    </button>
+                  )}
+                  <span className="upload-help-text">JPG, PNG, WEBP, or GIF. Max 5MB.</span>
+                </div>
               </div>
-              {fieldErrors.profileImageUrl && (
-                <span className="field-error-message">{fieldErrors.profileImageUrl}</span>
-              )}
+              {uploadError && <span className="field-error-message">{uploadError}</span>}
             </div>
           </div>
         </div>
@@ -370,12 +469,52 @@ export default function ProfilePage() {
         <div className="dashboard-card profile-section-card">
           <div className="card-header-clean">
             <div>
-              <h2 className="card-heading">Emissions Preferences & Units</h2>
-              <p className="card-subheading">Configure your default measurement and privacy settings</p>
+              <h2 className="card-heading">Emissions Preferences & Appearance</h2>
+              <p className="card-subheading">Configure your default measurement unit, theme, and privacy settings</p>
             </div>
           </div>
 
           <div className="profile-form-fields">
+            {/* Dark and Light Theme Toggle */}
+            <div className="form-group">
+              <label className="form-label">Appearance & Display Theme</label>
+              <div className="theme-selector-grid">
+                <label className={`theme-choice-card ${theme === 'light' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="themeChoice"
+                    value="light"
+                    checked={theme === 'light'}
+                    onChange={() => setTheme('light')}
+                  />
+                  <div className="theme-choice-icon">
+                    <Sun size={20} />
+                  </div>
+                  <div>
+                    <div className="theme-choice-label">Light Theme</div>
+                    <div className="theme-choice-desc">Clean, refreshing daylight nature theme (Default)</div>
+                  </div>
+                </label>
+
+                <label className={`theme-choice-card ${theme === 'dark' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="themeChoice"
+                    value="dark"
+                    checked={theme === 'dark'}
+                    onChange={() => setTheme('dark')}
+                  />
+                  <div className="theme-choice-icon">
+                    <Moon size={20} />
+                  </div>
+                  <div>
+                    <div className="theme-choice-label">Dark Theme</div>
+                    <div className="theme-choice-desc">Deep forest night mode with reduced eye fatigue</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             {/* Preferred Unit Radio Group */}
             <div className="form-group">
               <label className="form-label">Preferred Emissions Measurement Unit</label>
