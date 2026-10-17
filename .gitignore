@@ -12,3 +12,5 @@ backend.env
 .idea/
 .vscode/
 
+*.example
+carbontrack-backend/.env.example
