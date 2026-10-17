@@ -1,0 +1,16 @@
+node_modules/
+dist/
+target/
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+!*.env.example
+backend.env
+*.log
+.idea/
+.vscode/
+
+*.example
+carbontrack-backend/.env.example

@@ -1,0 +1,177 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import api, { getProfileImageUrl } from '../api/client';
+import { LeafIcon } from './NatureIcons';
+import { Menu, X, LogOut, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+
+export default function Navbar({ onToggleSidebar }) {
+  const { isAuthenticated, user, profile, logout, preferredUnit } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [, setHealthStatus] = useState('UNKNOWN');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkHealth() {
+      try {
+        const res = await api.health();
+        if (isMounted) setHealthStatus(res?.status === 'UP' ? 'UP' : 'DOWN');
+      } catch {
+        if (isMounted) setHealthStatus('DOWN');
+      }
+    }
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const displayName = profile?.fullName || user?.username || profile?.username || 'Eco Champion';
+  const unitLabel = preferredUnit === 'TONNES_CO2E' ? 'Tonnes CO₂e' : 'kg CO₂e';
+
+  return (
+    <header className="site-navbar">
+      <div className="navbar-container">
+        <div className="navbar-left">
+          {isAuthenticated && (
+            <button
+              type="button"
+              className="sidebar-toggle-btn"
+              onClick={onToggleSidebar}
+              aria-label="Toggle navigation drawer"
+            >
+              <Menu size={22} />
+            </button>
+          )}
+
+          <Link to={isAuthenticated ? '/dashboard' : '/'} className="navbar-brand">
+            <span className="brand-logo-icon">
+              <LeafIcon size={24} color="#FFFFFF" />
+            </span>
+            <span className="brand-name">
+              Carbon<span className="brand-accent">Track</span>
+            </span>
+            <span className="brand-pill">v1.0</span>
+          </Link>
+        </div>
+
+        <div className="navbar-right">
+          {isAuthenticated ? (
+            <div className="user-nav-cluster">
+              <button
+                type="button"
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              <div className="unit-indicator-pill" title="User preferred emission measurement unit">
+                <span className="unit-dot" />
+                <span>{unitLabel}</span>
+              </div>
+
+              <Link to="/profile" className="user-profile-pill" title="View & Edit Profile">
+                <div className="user-avatar-initials">
+                  {profile?.profileImageUrl && !avatarError ? (
+                    <img
+                      key={profile?.profileImageUrl}
+                      src={getProfileImageUrl(profile.profileImageUrl)}
+                      alt="Avatar"
+                      className="user-avatar-img"
+                      onError={() => setAvatarError(true)}
+                    />
+                  ) : (
+                    <span>{displayName.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="user-info-text">
+                  <span className="user-name-text">{displayName}</span>
+                  <span className="user-role-text">{profile?.role || 'Member'}</span>
+                </div>
+              </Link>
+
+              <button
+                type="button"
+                className="btn-logout"
+                onClick={handleLogout}
+                title="Log out securely"
+              >
+                <LogOut size={18} />
+                <span className="logout-text">Logout</span>
+              </button>
+            </div>
+          ) : (
+            <div className="public-nav-actions">
+              <button
+                type="button"
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              <Link
+                to="/login"
+                className={`btn btn-ghost ${location.pathname === '/login' ? 'active' : ''}`}
+              >
+                Sign In
+              </Link>
+              <Link to="/register" className="btn btn-primary">
+                Get Started
+              </Link>
+            </div>
+          )}
+
+          {/* Mobile controls for public view */}
+          {!isAuthenticated && (
+            <div className="public-mobile-controls">
+              <button
+                type="button"
+                className="theme-toggle-btn public-mobile-theme-btn"
+                onClick={toggleTheme}
+                title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              <button
+                type="button"
+                className="mobile-menu-trigger"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle navigation menu"
+              >
+                {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Public Mobile Drawer */}
+      {!isAuthenticated && mobileMenuOpen && (
+        <div className="public-mobile-drawer">
+          <Link to="/" onClick={() => setMobileMenuOpen(false)}>Overview</Link>
+          <Link to="/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+          <Link to="/register" onClick={() => setMobileMenuOpen(false)}>Create Account</Link>
+        </div>
+      )}
+    </header>
+  );
+}

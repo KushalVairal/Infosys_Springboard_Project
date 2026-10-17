@@ -1,0 +1,37 @@
+.app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.navbar {
+  background: white; border-bottom: 1px solid var(--border); padding: 0 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px; box-shadow: var(--shadow);
+}
+.navbar .brand {
+  font-size: 1.2rem; font-weight: 700; color: var(--primary-dark);
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.mock-pill {
+  font-size: 0.65rem; font-weight: 600; background: #fff3e0; color: var(--warning);
+  padding: 0.15rem 0.5rem; border-radius: 999px; text-transform: uppercase;
+}
+.navbar nav { display: flex; gap: 1.5rem; align-items: center; }
+.navbar nav a {
+  color: var(--text); font-size: 0.95rem; font-weight: 500;
+  padding: 0.4rem 0; border-bottom: 2px solid transparent;
+}
+.navbar nav a:hover { text-decoration: none; color: var(--primary); }
+.navbar nav a.active { color: var(--primary); border-bottom-color: var(--primary); }
+.page { max-width: 1200px; margin: 0 auto; padding: 2rem; width: 100%; }
+.page h2 { margin-bottom: 1.5rem; color: var(--primary-dark); }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: white; padding: 1.25rem; border-radius: var(--radius); box-shadow: var(--shadow); border-left: 4px solid var(--primary); }
+.stat-card .stat-label { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-card .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--primary-dark); margin-top: 0.3rem; }
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem; }
+.filters-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+@media (max-width: 768px) {
+  .charts-grid { grid-template-columns: 1fr; }
+  .filters-grid { grid-template-columns: 1fr 1fr; }
+  .navbar { padding: 0 1rem; }
+  .navbar nav { gap: 0.8rem; }
+  .navbar nav a { font-size: 0.8rem; }
+  .page { padding: 1rem; }
+}
