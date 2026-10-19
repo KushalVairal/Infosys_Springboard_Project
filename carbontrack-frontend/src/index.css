@@ -2377,6 +2377,62 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   text-decoration: underline;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.auth-divider span {
+  padding: 0 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-google {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-google:hover:not(:disabled) {
+  background-color: var(--bg-subtle);
+  border-color: var(--border-medium, #CBD5E1);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme="dark"] .btn-google {
+  background-color: var(--bg-surface-elevated, #1A2820);
+  border-color: var(--border-soft, #26382E);
+  color: #F0FDF4;
+}
+
+[data-theme="dark"] .btn-google:hover:not(:disabled) {
+  background-color: #22352B;
+  border-color: var(--forest-primary);
+}
+
+
 .auth-step-indicator,
 .step-progress-bar {
   display: flex;
