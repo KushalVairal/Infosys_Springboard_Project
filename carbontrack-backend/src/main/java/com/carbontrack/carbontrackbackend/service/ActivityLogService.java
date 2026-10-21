@@ -7,6 +7,7 @@ import com.carbontrack.carbontrackbackend.entity.ActivityLog;
 import com.carbontrack.carbontrackbackend.entity.User;
 import com.carbontrack.carbontrackbackend.repository.ActivityLogRepository;
 import com.carbontrack.carbontrackbackend.repository.UserRepository;
+import org.springframework.cache.annotation.CacheEvict;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,14 @@ public class ActivityLogService {
         this.userRepository = userRepository;
     }
 
+    @CacheEvict(
+            cacheNames = {
+                    "dailyFootprint",
+                    "weeklyFootprint",
+                    "monthlyFootprint"
+            },
+            allEntries = true
+    )
     @Transactional
     public ActivityLogResponseDTO createActivity(
             String email, ActivityLogRequestDTO request) {
