@@ -60,4 +60,57 @@ public interface ActivityLogRepository
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    // Peer Benchmarking (Task 7): Active users and their total emissions
+    @Query("""
+        SELECT new com.carbontrack.carbontrackbackend.dto.benchmark.UserEmissionAggregateDTO(
+            a.user.id,
+            SUM(a.co2eKg)
+        )
+        FROM ActivityLog a
+        WHERE a.logDate BETWEEN :startDate AND :endDate
+        GROUP BY a.user.id
+        """)
+    List<com.carbontrack.carbontrackbackend.dto.benchmark.UserEmissionAggregateDTO> findUserTotalEmissionsBetween(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    // Peer Benchmarking (Task 7): Category emissions across all users
+    @Query("""
+        SELECT new com.carbontrack.carbontrackbackend.dto.benchmark.CategoryEmissionAggregateDTO(
+            UPPER(TRIM(a.category)),
+            SUM(a.co2eKg)
+        )
+        FROM ActivityLog a
+        WHERE a.logDate BETWEEN :startDate AND :endDate
+        GROUP BY UPPER(TRIM(a.category))
+        """)
+    List<com.carbontrack.carbontrackbackend.dto.benchmark.CategoryEmissionAggregateDTO> findCategoryTotalEmissionsBetween(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    // Peer Benchmarking (Task 7): Authenticated user's emissions by category
+    @Query("""
+        SELECT new com.carbontrack.carbontrackbackend.dto.benchmark.CategoryEmissionAggregateDTO(
+            UPPER(TRIM(a.category)),
+            SUM(a.co2eKg)
+        )
+        FROM ActivityLog a
+        WHERE a.user.id = :userId
+          AND a.logDate BETWEEN :startDate AND :endDate
+        GROUP BY UPPER(TRIM(a.category))
+        """)
+    List<com.carbontrack.carbontrackbackend.dto.benchmark.CategoryEmissionAggregateDTO> findUserCategoryTotalsBetween(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    // Badge Engine (Task 8): Distinct log dates for streak detection
+    @Query("""
+        SELECT DISTINCT a.logDate
+        FROM ActivityLog a
+        WHERE a.user.id = :userId
+        ORDER BY a.logDate DESC
+        """)
+    List<LocalDate> findDistinctLogDatesByUserId(@Param("userId") Long userId);
 }

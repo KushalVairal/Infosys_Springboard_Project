@@ -15,6 +15,8 @@ import ActivitiesPage from './pages/ActivitiesPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 import GoalsPage from './pages/GoalsPage';
+import BenchmarkingPage from './pages/BenchmarkingPage';
+import AchievementsPage from './pages/AchievementsPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -42,6 +44,8 @@ export default function App() {
             <Route path="/log" element={<Navigate to="/activities" replace />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/benchmarks" element={<BenchmarkingPage />} />
+            <Route path="/achievements" element={<AchievementsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 

@@ -13,7 +13,8 @@ import {
   Award,
   Calendar,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 import {
   AreaChart,
@@ -34,6 +35,8 @@ export default function DashboardPage() {
   const { isDark } = useTheme();
   const [activities, setActivities] = useState([]);
   const [goals, setGoals] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [recPeriodDays, setRecPeriodDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -42,14 +45,21 @@ export default function DashboardPage() {
     async function loadData() {
       try {
         setLoading(true);
-        const [activityData, goalData] = await Promise.all([
+        const [activityData, goalData, recData] = await Promise.all([
           api.activities.getMyActivities().catch(() => []),
-          api.goals.getMyGoals().catch(() => [])
+          api.goals.getMyGoals().catch(() => []),
+          api.recommendations.getWeekly().catch(() => null)
         ]);
 
         if (isMounted) {
           setActivities(Array.isArray(activityData) ? activityData : []);
           setGoals(Array.isArray(goalData) ? goalData : []);
+          if (recData && Array.isArray(recData.recommendations)) {
+            setRecommendations(recData.recommendations);
+            setRecPeriodDays(recData.periodDays || 30);
+          } else {
+            setRecommendations([]);
+          }
           setError(null);
         }
       } catch (err) {
@@ -504,20 +514,53 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="eco-suggestions-grid">
-            <div className="suggestion-box">
-              <span className="sugg-tag">Commute</span>
-              <p>Choosing rail or public bus instead of solo driving can reduce travel emissions by up to 60%.</p>
-            </div>
-            <div className="suggestion-box">
-              <span className="sugg-tag">Diet</span>
-              <p>A plant-forward meal produces on average 80% fewer greenhouse emissions than beef.</p>
-            </div>
-            <div className="suggestion-box">
-              <span className="sugg-tag">Power</span>
-              <p>Switching unused electronics off standby saves approximately 15–20 kWh per month.</p>
-            </div>
+          <div className="recommendations-section-header">
+            <h3 className="recommendations-title">
+              <Sparkles size={18} color="var(--forest-primary)" />
+              <span>Personalised Reduction Recommendations</span>
+            </h3>
+            <span className="recommendations-period-tag">
+              Rolling {recPeriodDays}-day activity analysis
+            </span>
           </div>
+
+          {recommendations.length > 0 ? (
+            <div className="eco-suggestions-grid">
+              {recommendations.map((rec, idx) => {
+                const formattedType = (rec.activityType || 'Activity')
+                  .replace(/_/g, ' ')
+                  .toLowerCase()
+                  .replace(/\b\w/g, (c) => c.toUpperCase());
+                return (
+                  <div key={rec.activityType || idx} className="suggestion-box personalized-box">
+                    <div className="sugg-header-row">
+                      <span className="sugg-tag">{formattedType}</span>
+                      <span className="sugg-impact-badge" title="30-day recorded emissions">
+                        {isTonnes
+                          ? (Number(rec.totalCo2eKg || 0) / 1000).toFixed(3) + ' t CO₂e'
+                          : Number(rec.totalCo2eKg || 0).toFixed(1) + ' kg CO₂e'}
+                      </span>
+                    </div>
+                    {rec.tips && rec.tips.length > 0 ? (
+                      <ul className="sugg-tips-list">
+                        {rec.tips.map((tip, tipIdx) => (
+                          <li key={tipIdx}>{tip}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>Continue logging activities to receive targeted reduction tips for this category.</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="recommendations-empty-card">
+              <p>
+                No activity recorded in the rolling {recPeriodDays}-day window. Log your travel, energy, or diet activities to generate tailored reduction recommendations.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

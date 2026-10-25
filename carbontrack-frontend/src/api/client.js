@@ -34,6 +34,10 @@ export function getProfileImageUrl(url) {
   return `${cleanBase}${cleanPath}`;
 }
 
+export function getBadgeIconUrl(url) {
+  return getProfileImageUrl(url);
+}
+
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   const headers = {
@@ -93,9 +97,10 @@ async function request(endpoint, options = {}) {
     let validationErrors = null;
 
     if (data) {
-      if (data.validationErrors && typeof data.validationErrors === 'object') {
+      if (data.validationErrors && typeof data.validationErrors === 'object' && Object.keys(data.validationErrors).length > 0) {
         validationErrors = data.validationErrors;
-        message = data.message || 'Validation failed. Please check your inputs.';
+        const fieldMsgs = Object.values(data.validationErrors).filter(Boolean);
+        message = fieldMsgs.length > 0 ? fieldMsgs.join('. ') : (data.message || 'Validation failed. Please check your inputs.');
       } else if (data.message) {
         message = data.message;
       } else if (data.error) {
@@ -211,34 +216,112 @@ export const api = {
 
   // Sustainability Goals endpoints
   goals: {
-    getMyGoals: () => request('/api/goals', { method: 'GET' }),
+    getMyGoals: async () => {
+      try {
+        return await request('/api/goals/me', { method: 'GET' });
+      } catch (err) {
+        if (err.status === 404 || err.status === 405) {
+          return await request('/api/goals', { method: 'GET' });
+        }
+        throw err;
+      }
+    },
 
-    create: ({ title, description, targetCo2eKg, startDate, endDate }) =>
-      request('/api/goals', {
+    create: ({
+      title,
+      description,
+      baselineCo2eKg,
+      reductionPercentage,
+      targetCo2eKg,
+      startDate,
+      endDate
+    }) => {
+      let baseline =
+        baselineCo2eKg !== undefined && baselineCo2eKg !== null && baselineCo2eKg !== ''
+          ? Number(baselineCo2eKg)
+          : null;
+      let reduction =
+        reductionPercentage !== undefined && reductionPercentage !== null && reductionPercentage !== ''
+          ? Number(reductionPercentage)
+          : null;
+
+      // Fallback if caller provided targetCo2eKg but not baseline/reduction
+      if ((baseline === null || isNaN(baseline)) && targetCo2eKg !== undefined && targetCo2eKg !== null && targetCo2eKg !== '') {
+        reduction = 10;
+        baseline = Number((Number(targetCo2eKg) / 0.9).toFixed(3));
+      }
+
+      const payload = {
+        title: title ? title.trim() : '',
+        description: description ? description.trim() : '',
+        startDate,
+        endDate
+      };
+
+      if (baseline !== null && !isNaN(baseline)) {
+        payload.baselineCo2eKg = Number(baseline.toFixed(3));
+      }
+      if (reduction !== null && !isNaN(reduction)) {
+        payload.reductionPercentage = Number(reduction.toFixed(2));
+      }
+
+      return request('/api/goals', {
         method: 'POST',
-        body: JSON.stringify({
-          title,
-          description: description || '',
-          targetCo2eKg: Number(targetCo2eKg),
-          startDate,
-          endDate
-        })
-      }),
+        body: JSON.stringify(payload)
+      });
+    },
 
-    update: (id, { title, description, targetCo2eKg, startDate, endDate, status }) =>
-      request(`/api/goals/${id}`, {
+    update: (
+      id,
+      {
+        title,
+        description,
+        baselineCo2eKg,
+        reductionPercentage,
+        targetCo2eKg,
+        startDate,
+        endDate,
+        status
+      }
+    ) => {
+      let baseline =
+        baselineCo2eKg !== undefined && baselineCo2eKg !== null && baselineCo2eKg !== ''
+          ? Number(baselineCo2eKg)
+          : null;
+      let reduction =
+        reductionPercentage !== undefined && reductionPercentage !== null && reductionPercentage !== ''
+          ? Number(reductionPercentage)
+          : null;
+
+      if ((baseline === null || isNaN(baseline)) && targetCo2eKg !== undefined && targetCo2eKg !== null && targetCo2eKg !== '') {
+        reduction = 10;
+        baseline = Number((Number(targetCo2eKg) / 0.9).toFixed(3));
+      }
+
+      const payload = {
+        title: title ? title.trim() : '',
+        description: description ? description.trim() : '',
+        startDate,
+        endDate,
+        status: status || 'ACTIVE'
+      };
+
+      if (baseline !== null && !isNaN(baseline)) {
+        payload.baselineCo2eKg = Number(baseline.toFixed(3));
+      }
+      if (reduction !== null && !isNaN(reduction)) {
+        payload.reductionPercentage = Number(reduction.toFixed(2));
+      }
+
+      return request(`/api/goals/${id}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          title,
-          description: description || '',
-          targetCo2eKg: Number(targetCo2eKg),
-          startDate,
-          endDate,
-          status: status || 'ACTIVE'
-        })
-      }),
+        body: JSON.stringify(payload)
+      });
+    },
 
-    delete: (id) => request(`/api/goals/${id}`, { method: 'DELETE' })
+    delete: (id) => request(`/api/goals/${id}`, { method: 'DELETE' }),
+
+    getProjection: (id) => request(`/api/goals/${id}/projection`, { method: 'GET' })
   },
 
   // Activity Log endpoints
@@ -256,6 +339,33 @@ export const api = {
           logDate
         })
       })
+  },
+
+  // Footprint Aggregation & Analytics endpoints (Task 2 & 3)
+  analytics: {
+    getDaily: (startDate, endDate) =>
+      request(`/api/analytics/daily?startDate=${startDate}&endDate=${endDate}`, { method: 'GET' }),
+
+    getWeekly: (startDate, endDate) =>
+      request(`/api/analytics/weekly?startDate=${startDate}&endDate=${endDate}`, { method: 'GET' }),
+
+    getMonthly: (startDate, endDate) =>
+      request(`/api/analytics/monthly?startDate=${startDate}&endDate=${endDate}`, { method: 'GET' })
+  },
+
+  // Personalised Recommendations endpoints (Task 4)
+  recommendations: {
+    getWeekly: () => request('/api/recommendations/weekly', { method: 'GET' })
+  },
+
+  // Peer Benchmarking endpoints (Task 7)
+  benchmarks: {
+    getMyBenchmark: () => request('/api/benchmarks/me', { method: 'GET' })
+  },
+
+  // Badge & Achievement Engine endpoints (Task 8)
+  badges: {
+    getMyBadges: () => request('/api/badges/me', { method: 'GET' })
   }
 };
 
