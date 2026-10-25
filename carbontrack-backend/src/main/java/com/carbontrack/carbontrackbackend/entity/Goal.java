@@ -28,6 +28,12 @@ public class Goal {
             precision = 14, scale = 3)
     private BigDecimal targetCo2eKg;
 
+    @Column(name = "baseline_co2e_kg", precision = 12, scale = 3)
+    private BigDecimal baselineCo2eKg;
+
+    @Column(name = "reduction_percentage", precision = 5, scale = 2)
+    private BigDecimal reductionPercentage;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
@@ -60,6 +66,18 @@ public class Goal {
     public BigDecimal getTargetCo2eKg() { return targetCo2eKg; }
     public void setTargetCo2eKg(BigDecimal targetCo2eKg) {
         this.targetCo2eKg = targetCo2eKg;
+    }
+
+    public BigDecimal getBaselineCo2eKg() { return baselineCo2eKg; }
+    public void setBaselineCo2eKg(BigDecimal baselineCo2eKg) {
+        this.baselineCo2eKg = baselineCo2eKg;
+    }
+
+    public BigDecimal getReductionPercentage() {
+        return reductionPercentage;
+    }
+    public void setReductionPercentage(BigDecimal reductionPercentage) {
+        this.reductionPercentage = reductionPercentage;
     }
 
     public LocalDate getStartDate() { return startDate; }

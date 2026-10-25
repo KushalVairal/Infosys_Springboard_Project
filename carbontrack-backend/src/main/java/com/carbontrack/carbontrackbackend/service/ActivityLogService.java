@@ -20,6 +20,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import com.carbontrack.carbontrackbackend.event.ActivityLoggedEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+
 @Service
 public class ActivityLogService {
 
@@ -29,15 +33,26 @@ public class ActivityLogService {
     private final ActivityLogRepository activityLogRepository;
     private final UserRepository userRepository;
     private final EmissionCalculationService emissionCalculationService;
+    private final ApplicationEventPublisher eventPublisher;
+
+    @Autowired
+    public ActivityLogService(
+            ActivityLogRepository activityLogRepository,
+            EmissionCalculationService emissionCalculationService,
+            UserRepository userRepository,
+            ApplicationEventPublisher eventPublisher) {
+
+        this.activityLogRepository = activityLogRepository;
+        this.emissionCalculationService = emissionCalculationService;
+        this.userRepository = userRepository;
+        this.eventPublisher = eventPublisher;
+    }
 
     public ActivityLogService(
             ActivityLogRepository activityLogRepository,
             EmissionCalculationService emissionCalculationService,
             UserRepository userRepository) {
-
-        this.activityLogRepository = activityLogRepository;
-        this.emissionCalculationService = emissionCalculationService;
-        this.userRepository = userRepository;
+        this(activityLogRepository, emissionCalculationService, userRepository, null);
     }
 
     @CacheEvict(
@@ -95,6 +110,15 @@ public class ActivityLogService {
         activity.setLogDate(logDate);
 
         ActivityLog saved = activityLogRepository.save(activity);
+
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new ActivityLoggedEvent(
+                    user.getId(),
+                    saved.getId(),
+                    saved.getLogDate(),
+                    saved.getCo2eKg()
+            ));
+        }
 
         return convertToDTO(saved);
     }

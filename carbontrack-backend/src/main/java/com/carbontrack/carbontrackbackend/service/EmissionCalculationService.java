@@ -37,6 +37,12 @@ public class EmissionCalculationService {
         EmissionFactor factor = emissionFactorRepository
                 .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
                         activityType, unit, activityDate)
+                .or(() -> emissionFactorRepository
+                        .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                                activityType, unit != null ? unit.toLowerCase(java.util.Locale.ROOT) : null, activityDate))
+                .or(() -> emissionFactorRepository
+                        .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                                activityType, unit != null ? unit.toUpperCase(java.util.Locale.ROOT) : null, activityDate))
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "No emission factor found for the activity type, unit, and date"
