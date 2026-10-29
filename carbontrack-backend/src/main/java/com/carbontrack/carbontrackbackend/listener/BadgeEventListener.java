@@ -20,10 +20,26 @@ public class BadgeEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onActivityLogged(ActivityLoggedEvent event) {
+        log.info(
+                "ActivityLoggedEvent received: userId={}, activityId={}, date={}",
+                event.userId(),
+                event.activityId(),
+                event.logDate()
+        );
+
         try {
-            badgeService.evaluateBadges(event.userId());
+            var awarded = badgeService.evaluateBadges(event.userId());
+            log.info(
+                    "Badge evaluation completed for userId={}. Newly awarded: {}",
+                    event.userId(),
+                    awarded
+            );
         } catch (Exception ex) {
-            log.warn("Badge evaluation encountered an error for user ID {}: {}", event.userId(), ex.getMessage());
+            log.error(
+                    "Badge evaluation failed for userId={}",
+                    event.userId(),
+                    ex
+            );
         }
     }
 }
