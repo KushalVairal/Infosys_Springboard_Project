@@ -1,4 +1,4 @@
-# CarbonTrack — Docker Setup Guide
+# CarbonTrack — Docker Setup Guid e
 
 This guide explains how teammates can configure and run CarbonTrack locally with Docker Compose.
 
