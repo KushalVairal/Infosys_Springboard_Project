@@ -22,3 +22,5 @@ public class BenchmarkController {
         return benchmarkService.getMyBenchmark(authentication.getName());
     }
 }
+
+

@@ -141,6 +141,7 @@ public class BadgeService {
             return false;
         }
 
+
         int consecutive = 1;
         for (int i = 0; i < dates.size() - 1; i++) {
             LocalDate current = dates.get(i);
@@ -158,6 +159,7 @@ public class BadgeService {
 
         return false;
     }
+
 
     private boolean checkFirstGoalCompleted(Long userId, List<Goal> userGoals) {
         if (userGoals == null || userGoals.isEmpty()) {
