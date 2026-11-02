@@ -56,7 +56,10 @@ export default function LoginPage() {
       })
         .then(() => {
           if (!isMounted) return;
-          const redirectPath = location.state?.from?.pathname || '/dashboard';
+          const requested = location.state?.from?.pathname;
+          const redirectPath = requested && !['/login', '/register', '/forgot-password'].includes(requested)
+            ? requested
+            : '/dashboard';
           navigate(redirectPath, { replace: true });
         })
         .catch((err) => {
@@ -101,7 +104,10 @@ export default function LoginPage() {
         email: res.email
       });
 
-      const redirectPath = location.state?.from?.pathname || '/dashboard';
+      const requested = location.state?.from?.pathname;
+      const redirectPath = requested && !['/login', '/register', '/forgot-password'].includes(requested)
+        ? requested
+        : '/dashboard';
       navigate(redirectPath, { replace: true });
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please check your credentials.');
