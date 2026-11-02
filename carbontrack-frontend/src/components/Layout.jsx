@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
+import Footer from './Footer';
 
 export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -17,9 +18,11 @@ export default function Layout() {
         <main className="main-content-area">
           <div className="content-container">
             <Outlet />
+            <Footer compact />
           </div>
         </main>
       </div>
     </div>
   );
 }
+
