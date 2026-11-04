@@ -18,6 +18,7 @@ import GoalsPage from './pages/GoalsPage';
 import BenchmarkingPage from './pages/BenchmarkingPage';
 import AchievementsPage from './pages/AchievementsPage';
 import NotFoundPage from './pages/NotFoundPage';
+import LeaderboardPage from './pages/LeaderboardPage';
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="/benchmarks" element={<BenchmarkingPage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
           </Route>
 
           {/* Fallback */}

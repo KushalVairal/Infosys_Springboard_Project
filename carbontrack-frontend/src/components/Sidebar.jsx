@@ -12,7 +12,8 @@ import {
   Moon,
   LogOut,
   Users,
-  Award
+  Award,
+  Trophy
 } from 'lucide-react';
 import { LeafIcon } from './NatureIcons';
 import { useAuth } from '../context/AuthContext';
@@ -63,6 +64,12 @@ export default function Sidebar({ isOpen, onClose }) {
       label: 'Profile & Settings',
       icon: <User size={20} />,
       badge: null
+    },
+    {
+  to: '/leaderboard',
+  label: 'Community Leaderboard',
+  icon: <Trophy size={20} />,
+  badge: null
     }
   ];
 

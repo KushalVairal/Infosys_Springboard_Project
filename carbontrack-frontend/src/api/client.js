@@ -366,7 +366,13 @@ export const api = {
   // Badge & Achievement Engine endpoints (Task 8)
   badges: {
     getMyBadges: () => request('/api/badges/me', { method: 'GET' })
-  }
+  },
+  // Community Leaderboard endpoint
+leaderboard: {
+  getLeaderboard: () =>
+    request('/api/leaderboard', { method: 'GET' })
+}
+
 };
 
 export const apiClient = api;

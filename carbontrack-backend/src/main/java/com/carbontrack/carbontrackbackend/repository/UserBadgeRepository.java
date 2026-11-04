@@ -18,5 +18,16 @@ public interface UserBadgeRepository
 
     @Query("SELECT ub FROM UserBadge ub JOIN FETCH ub.badge WHERE ub.user.id = :userId ORDER BY ub.awardedAt DESC")
     List<UserBadge> findByUserIdWithBadge(@Param("userId") Long userId);
+
+    @Query("""
+    SELECT ub
+    FROM UserBadge ub
+    JOIN FETCH ub.badge
+    WHERE ub.user.id IN :userIds
+    ORDER BY ub.awardedAt DESC
+    """)
+List<UserBadge> findByUserIdsWithBadge(
+        @Param("userIds") List<Long> userIds
+);
 }
 
