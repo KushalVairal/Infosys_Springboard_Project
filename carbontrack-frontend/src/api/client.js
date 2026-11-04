@@ -379,6 +379,12 @@ export const api = {
   badges: {
     getMyBadges: () => request('/api/badges/me', { method: 'GET' })
   },
+  // Community Leaderboard endpoint
+leaderboard: {
+  getLeaderboard: () =>
+    request('/api/leaderboard', { method: 'GET' })
+}
+
 
   // Generic HTTP methods compatible with Axios-style callers
   get: async (endpoint, options = {}) => {
