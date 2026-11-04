@@ -1,9 +1,7 @@
 // Centralized API client for CarbonTrack Spring Boot REST API
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8080';
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL;
+export const API_BASE_URL = rawBaseUrl !== undefined ? rawBaseUrl : 'http://localhost:8080';
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
@@ -29,9 +27,9 @@ export function getProfileImageUrl(url) {
   ) {
     return trimmed;
   }
-  const cleanBase = API_BASE_URL.replace(/\/+$/, '');
+  const cleanBase = (API_BASE_URL || '').replace(/\/+$/, '');
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return `${cleanBase}${cleanPath}`;
+  return cleanBase ? `${cleanBase}${cleanPath}` : cleanPath;
 }
 
 export function getBadgeIconUrl(url) {
@@ -39,9 +37,23 @@ export function getBadgeIconUrl(url) {
 }
 
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  let url = `${API_BASE_URL}${endpoint}`;
+  if (options.params && typeof options.params === 'object') {
+    const searchParams = new URLSearchParams();
+    Object.entries(options.params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== '') {
+        searchParams.append(key, val);
+      }
+    });
+    const queryString = searchParams.toString();
+    if (queryString) {
+      url += (url.includes('?') ? '&' : '?') + queryString;
+    }
+  }
+
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers || {})
   };
 
@@ -62,7 +74,7 @@ async function request(endpoint, options = {}) {
     response = await fetch(url, config);
   } catch {
     throw new ApiError(
-      `Unable to reach the backend server at ${API_BASE_URL}. Ensure Spring Boot is running on port 8080.`,
+      `Unable to reach the backend server at ${API_BASE_URL || 'current host'}. Ensure Spring Boot is running on port 8080.`,
       0
     );
   }
@@ -373,8 +385,50 @@ leaderboard: {
     request('/api/leaderboard', { method: 'GET' })
 }
 
+
+  // Generic HTTP methods compatible with Axios-style callers
+  get: async (endpoint, options = {}) => {
+    const data = await request(endpoint, { method: 'GET', ...options });
+    return { data };
+  },
+
+  post: async (endpoint, body, options = {}) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const data = await request(endpoint, {
+      method: 'POST',
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+      ...options
+    });
+    return { data };
+  },
+
+  put: async (endpoint, body, options = {}) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const data = await request(endpoint, {
+      method: 'PUT',
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+      ...options
+    });
+    return { data };
+  },
+
+  patch: async (endpoint, body, options = {}) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const data = await request(endpoint, {
+      method: 'PATCH',
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+      ...options
+    });
+    return { data };
+  },
+
+  delete: async (endpoint, options = {}) => {
+    const data = await request(endpoint, { method: 'DELETE', ...options });
+    return { data };
+  }
 };
 
 export const apiClient = api;
 export default api;
+
 
