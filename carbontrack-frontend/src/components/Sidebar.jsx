@@ -1,6 +1,20 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Activity, BarChart3, User, Sparkles, X, Target, Sun, Moon, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Activity,
+  BarChart3,
+  User,
+  Sparkles,
+  X,
+  Target,
+  Sun,
+  Moon,
+  LogOut,
+  Users,
+  Award,
+  Trophy
+} from 'lucide-react';
 import { LeafIcon } from './NatureIcons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -34,10 +48,28 @@ export default function Sidebar({ isOpen, onClose }) {
       badge: null
     },
     {
+      to: '/benchmarks',
+      label: 'Peer Benchmarks',
+      icon: <Users size={20} />,
+      badge: null
+    },
+    {
+      to: '/achievements',
+      label: 'My Achievements',
+      icon: <Award size={20} />,
+      badge: null
+    },
+    {
       to: '/profile',
       label: 'Profile & Settings',
       icon: <User size={20} />,
       badge: null
+    },
+    {
+  to: '/leaderboard',
+  label: 'Community Leaderboard',
+  icon: <Trophy size={20} />,
+  badge: null
     }
   ];
 

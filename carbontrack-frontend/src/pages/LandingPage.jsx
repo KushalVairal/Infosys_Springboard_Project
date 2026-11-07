@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { LeafIcon, EcoSproutIcon } from '../components/NatureIcons';
 import { ArrowRight, CheckCircle2, ShieldCheck, Zap, Car, Utensils, ShoppingBag } from 'lucide-react';
 import api from '../api/client';
@@ -172,22 +173,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="landing-footer">
-        <div className="landing-container footer-inner">
-          <div className="footer-left">
-            <div className="footer-brand">
-              <LeafIcon size={20} color="#244B35" />
-              <span>CarbonTrack</span>
-            </div>
-            <p className="footer-tagline">Personal & Organizational Carbon Accounting Platform</p>
-          </div>
-          <div className="footer-links">
-            <Link to="/login">Sign In</Link>
-            <Link to="/register">Create Account</Link>
-            <Link to="/forgot-password">Reset Password</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import GoalProjectionSection from '../components/GoalProjectionSection';
 import {
   Target,
   Plus,
@@ -14,6 +15,95 @@ import {
   Edit2,
   X
 } from 'lucide-react';
+
+function computeBudgetStatus(currentKgRaw, targetKgRaw, isTonnes, unitLabel) {
+  const currentKg = Number(currentKgRaw) || 0;
+  const targetKg = Number(targetKgRaw);
+
+  const displayCurrent = isTonnes ? (currentKg / 1000).toFixed(3) : currentKg.toFixed(2);
+
+  // Safe handling of zero or invalid target
+  if (isNaN(targetKg) || targetKg <= 0) {
+    if (currentKg > 0) {
+      return {
+        displayCurrent,
+        displayTarget: isTonnes ? '0.000' : '0.00',
+        remainingBudgetKg: -currentKg,
+        meterPct: 100,
+        meterTone: 'critical',
+        remainingLabel: `Budget exceeded by ${displayCurrent} ${unitLabel}`,
+        pctUsedLabel: 'Exceeded',
+        isExceeded: true,
+        isZeroTarget: true
+      };
+    }
+    return {
+      displayCurrent,
+      displayTarget: isTonnes ? '0.000' : '0.00',
+      remainingBudgetKg: 0,
+      meterPct: 0,
+      meterTone: 'safe',
+      remainingLabel: '0% remaining (No target set)',
+      pctUsedLabel: '0% used',
+      isExceeded: false,
+      isZeroTarget: true
+    };
+  }
+
+  const displayTarget = isTonnes ? (targetKg / 1000).toFixed(3) : targetKg.toFixed(2);
+  const remainingKg = targetKg - currentKg;
+  const pctUsed = (currentKg / targetKg) * 100;
+  const clampedMeterPct = Math.max(0, Math.min(100, Math.round(pctUsed)));
+
+  // Negative remaining budget: Budget exceeded
+  if (remainingKg < -0.0001) {
+    const amountOver = Math.abs(remainingKg);
+    const displayOver = isTonnes ? (amountOver / 1000).toFixed(3) : amountOver.toFixed(2);
+    return {
+      displayCurrent,
+      displayTarget,
+      remainingBudgetKg: remainingKg,
+      meterPct: 100,
+      meterTone: 'critical',
+      remainingLabel: `Budget exceeded by ${displayOver} ${unitLabel}`,
+      pctUsedLabel: `${Math.round(pctUsed)}% used`,
+      isExceeded: true,
+      isZeroTarget: false
+    };
+  }
+
+  // Zero remaining budget: fully used
+  if (Math.abs(remainingKg) <= 0.0001) {
+    return {
+      displayCurrent,
+      displayTarget,
+      remainingBudgetKg: 0,
+      meterPct: 100,
+      meterTone: 'critical',
+      remainingLabel: '0% remaining (Budget fully used)',
+      pctUsedLabel: '100% used',
+      isExceeded: false,
+      isZeroTarget: false
+    };
+  }
+
+  // Positive remaining budget
+  const remainingPct = Math.max(0, Math.min(100, Math.round((remainingKg / targetKg) * 100)));
+  const displayRemaining = isTonnes ? (remainingKg / 1000).toFixed(3) : remainingKg.toFixed(2);
+  const meterTone = pctUsed > 90 ? 'critical' : pctUsed > 70 ? 'warning' : 'safe';
+
+  return {
+    displayCurrent,
+    displayTarget,
+    remainingBudgetKg: remainingKg,
+    meterPct: clampedMeterPct,
+    meterTone,
+    remainingLabel: `${displayRemaining} ${unitLabel} remaining (${remainingPct}%)`,
+    pctUsedLabel: `${Math.round(pctUsed)}% used`,
+    isExceeded: false,
+    isZeroTarget: false
+  };
+}
 
 export default function GoalsPage() {
   const { preferredUnit } = useAuth();
@@ -28,7 +118,8 @@ export default function GoalsPage() {
   const [modalForm, setModalForm] = useState(() => ({
     title: '',
     description: '',
-    targetCo2eKg: '',
+    baselineCo2eKg: '',
+    reductionPercentage: '',
     startDate: new Date().toISOString().slice(0, 10),
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     status: 'ACTIVE'
@@ -40,6 +131,14 @@ export default function GoalsPage() {
 
   const isTonnes = preferredUnit === 'TONNES_CO2E';
   const unitLabel = isTonnes ? 'Tonnes CO₂e' : 'kg CO₂e';
+
+  const computedTarget = useMemo(() => {
+    const b = Number(modalForm.baselineCo2eKg);
+    const r = Number(modalForm.reductionPercentage);
+    if (!b || isNaN(b) || b <= 0 || isNaN(r) || r < 0.01 || r > 100) return null;
+    const target = b * (1 - r / 100);
+    return target >= 0 ? target.toFixed(isTonnes ? 3 : 2) : '0.00';
+  }, [modalForm.baselineCo2eKg, modalForm.reductionPercentage, isTonnes]);
 
   const fetchGoals = async () => {
     try {
@@ -63,7 +162,8 @@ export default function GoalsPage() {
     setModalForm({
       title: '',
       description: '',
-      targetCo2eKg: '',
+      baselineCo2eKg: isTonnes ? '0.100' : '100',
+      reductionPercentage: '10',
       startDate: new Date().toISOString().slice(0, 10),
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       status: 'ACTIVE'
@@ -75,15 +175,19 @@ export default function GoalsPage() {
 
   const openEditModal = (goal) => {
     setEditingGoal(goal);
-    // If user prefers tonnes, display converted value in form
-    const displayTarget = isTonnes
-      ? (Number(goal.targetCo2eKg) / 1000).toFixed(3)
-      : Number(goal.targetCo2eKg).toString();
+    const rawBaseline = Number(goal.baselineCo2eKg) || Number(goal.targetCo2eKg) || 100;
+    const displayBaseline = isTonnes
+      ? (rawBaseline / 1000).toFixed(3)
+      : rawBaseline.toString();
 
     setModalForm({
       title: goal.title || '',
       description: goal.description || '',
-      targetCo2eKg: displayTarget,
+      baselineCo2eKg: displayBaseline,
+      reductionPercentage:
+        goal.reductionPercentage !== null && goal.reductionPercentage !== undefined
+          ? goal.reductionPercentage.toString()
+          : '10',
       startDate: goal.startDate || '',
       endDate: goal.endDate || '',
       status: goal.status || 'ACTIVE'
@@ -109,11 +213,22 @@ export default function GoalsPage() {
     const errors = {};
     if (!modalForm.title.trim()) {
       errors.title = 'Goal title is required.';
+    } else if (modalForm.title.trim().length > 150) {
+      errors.title = 'Goal title cannot exceed 150 characters.';
     }
 
-    const rawTarget = Number(modalForm.targetCo2eKg);
-    if (isNaN(rawTarget) || rawTarget <= 0) {
-      errors.targetCo2eKg = 'Target emissions budget must be greater than zero.';
+    if (modalForm.description && modalForm.description.length > 500) {
+      errors.description = 'Description cannot exceed 500 characters.';
+    }
+
+    const rawBaseline = Number(modalForm.baselineCo2eKg);
+    if (isNaN(rawBaseline) || rawBaseline <= 0) {
+      errors.baselineCo2eKg = 'Baseline emissions must be greater than zero.';
+    }
+
+    const rawReduction = Number(modalForm.reductionPercentage);
+    if (isNaN(rawReduction) || rawReduction < 0.01 || rawReduction > 100) {
+      errors.reductionPercentage = 'Reduction percentage must be between 0.01% and 100%.';
     }
 
     if (!modalForm.startDate) {
@@ -123,7 +238,7 @@ export default function GoalsPage() {
       errors.endDate = 'End date is required.';
     }
 
-    if (modalForm.startDate && modalForm.endDate && new Date(modalForm.endDate) < new Date(modalForm.startDate)) {
+    if (modalForm.startDate && modalForm.endDate && modalForm.endDate < modalForm.startDate) {
       errors.endDate = 'End date cannot be earlier than start date.';
     }
 
@@ -134,28 +249,27 @@ export default function GoalsPage() {
     }
 
     // Convert back to kg if entered as tonnes
-    const targetInKg = isTonnes ? rawTarget * 1000 : rawTarget;
+    const baselineInKg = isTonnes ? rawBaseline * 1000 : rawBaseline;
 
     setIsSubmitting(true);
     try {
+      const payload = {
+        title: modalForm.title.trim(),
+        description: modalForm.description.trim(),
+        baselineCo2eKg: Number(baselineInKg.toFixed(3)),
+        reductionPercentage: Number(rawReduction.toFixed(2)),
+        startDate: modalForm.startDate,
+        endDate: modalForm.endDate
+      };
+
       if (editingGoal) {
         await api.goals.update(editingGoal.id, {
-          title: modalForm.title.trim(),
-          description: modalForm.description.trim(),
-          targetCo2eKg: targetInKg,
-          startDate: modalForm.startDate,
-          endDate: modalForm.endDate,
+          ...payload,
           status: modalForm.status
         });
         setActionSuccess('Goal updated successfully!');
       } else {
-        await api.goals.create({
-          title: modalForm.title.trim(),
-          description: modalForm.description.trim(),
-          targetCo2eKg: targetInKg,
-          startDate: modalForm.startDate,
-          endDate: modalForm.endDate
-        });
+        await api.goals.create(payload);
         setActionSuccess('New sustainability goal created!');
       }
 
@@ -163,7 +277,13 @@ export default function GoalsPage() {
       await fetchGoals();
       setTimeout(() => setActionSuccess(''), 4000);
     } catch (err) {
-      setModalError(err.message || 'Operation failed. Please review inputs.');
+      if (err.validationErrors && typeof err.validationErrors === 'object' && Object.keys(err.validationErrors).length > 0) {
+        setModalFieldErrors(err.validationErrors);
+        const errorList = Object.values(err.validationErrors);
+        setModalError(errorList.join('. '));
+      } else {
+        setModalError(err.message || 'Operation failed. Please review inputs.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -186,6 +306,9 @@ export default function GoalsPage() {
 
   const filteredGoals = useMemo(() => {
     if (activeFilter === 'ALL') return goals;
+    if (activeFilter === 'OVERDUE') {
+      return goals.filter((g) => g.status === 'OVERDUE' || g.status === 'EXCEEDED');
+    }
     return goals.filter((g) => (g.status || 'ACTIVE').toUpperCase() === activeFilter);
   }, [goals, activeFilter]);
 
@@ -235,6 +358,14 @@ export default function GoalsPage() {
         <div className="dashboard-alert alert-error" role="alert">
           <AlertCircle size={18} />
           <span>{error}</span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-xs"
+            onClick={fetchGoals}
+            style={{ marginLeft: 'auto' }}
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -315,12 +446,7 @@ export default function GoalsPage() {
       {filteredGoals.length > 0 ? (
         <div className="goals-cards-grid">
           {filteredGoals.map((g) => {
-            const currentKg = Number(g.currentCo2eKg) || 0;
-            const targetKg = Number(g.targetCo2eKg) || 1;
-            const pct = Math.min(100, Math.round(g.progressPercentage || (currentKg / targetKg) * 100));
-
-            const displayCurrent = isTonnes ? (currentKg / 1000).toFixed(3) : currentKg.toFixed(2);
-            const displayTarget = isTonnes ? (targetKg / 1000).toFixed(3) : targetKg.toFixed(2);
+            const budget = computeBudgetStatus(g.currentCo2eKg, g.targetCo2eKg, isTonnes, unitLabel);
 
             let statusClass = 'status-active';
             let statusLabel = 'Active';
@@ -330,7 +456,7 @@ export default function GoalsPage() {
             } else if (g.status === 'OVERDUE') {
               statusClass = 'status-overdue';
               statusLabel = 'Overdue';
-            } else if (g.status === 'EXCEEDED') {
+            } else if (g.status === 'EXCEEDED' || budget.isExceeded) {
               statusClass = 'status-exceeded';
               statusLabel = 'Budget Exceeded';
             } else if (g.status === 'CANCELLED') {
@@ -345,7 +471,7 @@ export default function GoalsPage() {
                     <span className={`goal-status-badge ${statusClass}`}>
                       {g.status === 'COMPLETED' ? (
                         <CheckCircle2 size={13} />
-                      ) : g.status === 'OVERDUE' || g.status === 'EXCEEDED' ? (
+                      ) : g.status === 'OVERDUE' || g.status === 'EXCEEDED' || budget.isExceeded ? (
                         <AlertCircle size={13} />
                       ) : (
                         <Clock size={13} />
@@ -387,31 +513,35 @@ export default function GoalsPage() {
                 <div className="goal-progress-box">
                   <div className="goal-progress-header">
                     <span className="goal-current-val">
-                      <strong>{displayCurrent}</strong> {unitLabel} emitted
+                      <strong>{budget.displayCurrent}</strong> {unitLabel} emitted
                     </span>
                     <span className="goal-target-val">
-                      Target Budget: <strong>{displayTarget}</strong> {unitLabel}
+                      Target Budget: <strong>{budget.displayTarget}</strong> {unitLabel}
+                      {g.reductionPercentage != null ? ` (${g.reductionPercentage}% cut)` : ''}
                     </span>
                   </div>
 
                   <div className="goal-meter-track">
                     <div
-                      className={`goal-meter-fill ${
-                        pct > 90 ? 'critical' : pct > 70 ? 'warning' : 'safe'
-                      }`}
-                      style={{ width: `${pct}%` }}
+                      className={`goal-meter-fill ${budget.meterTone}`}
+                      style={{ width: `${budget.meterPct}%` }}
                     />
                   </div>
 
                   <div className="goal-progress-footer">
-                    <span>
-                      {pct >= 100
-                        ? '100% of budget exhausted'
-                        : `${(100 - pct).toFixed(0)}% budget remaining`}
+                    <span className={budget.isExceeded ? 'text-coral font-medium' : ''}>
+                      {budget.remainingLabel}
                     </span>
-                    <span className="goal-pct-text">{pct}%</span>
+                    <span className="goal-pct-text">{budget.pctUsedLabel}</span>
                   </div>
                 </div>
+
+                {/* Task 6: Goal Projection & Alerts Section */}
+                <GoalProjectionSection
+                  key={`proj-${g.id}-${g.targetCo2eKg}-${g.startDate}-${g.endDate}`}
+                  goal={g}
+                  preferredUnit={preferredUnit}
+                />
               </div>
             );
           })}
@@ -498,27 +628,67 @@ export default function GoalsPage() {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="goal-target">
-                  <span>Target Emission Budget ({unitLabel}) <span className="text-coral">*</span></span>
-                </label>
-                <input
-                  id="goal-target"
-                  type="number"
-                  step="any"
-                  min="0.01"
-                  className={`form-input ${modalFieldErrors.targetCo2eKg ? 'has-error' : ''}`}
-                  placeholder={isTonnes ? '0.15' : '150'}
-                  value={modalForm.targetCo2eKg}
-                  onChange={(e) => handleFormFieldChange('targetCo2eKg', e.target.value)}
-                  disabled={isSubmitting}
-                  required
-                />
-                {modalFieldErrors.targetCo2eKg ? (
-                  <span className="field-error-message">{modalFieldErrors.targetCo2eKg}</span>
-                ) : (
-                  <span className="field-hint">Maximum allowable carbon emissions across the goal period.</span>
-                )}
+              <div className="form-row-2col">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="goal-baseline">
+                    <span>Baseline Footprint ({unitLabel}) <span className="text-coral">*</span></span>
+                  </label>
+                  <input
+                    id="goal-baseline"
+                    type="number"
+                    step="any"
+                    min="0.001"
+                    className={`form-input ${modalFieldErrors.baselineCo2eKg ? 'has-error' : ''}`}
+                    placeholder={isTonnes ? '0.100' : '100'}
+                    value={modalForm.baselineCo2eKg}
+                    onChange={(e) => handleFormFieldChange('baselineCo2eKg', e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                  />
+                  {modalFieldErrors.baselineCo2eKg ? (
+                    <span className="field-error-message">{modalFieldErrors.baselineCo2eKg}</span>
+                  ) : (
+                    <span className="field-hint">Reference emissions before reduction.</span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="goal-reduction">
+                    <span>Target Reduction (%) <span className="text-coral">*</span></span>
+                  </label>
+                  <input
+                    id="goal-reduction"
+                    type="number"
+                    step="any"
+                    min="0.01"
+                    max="100"
+                    className={`form-input ${modalFieldErrors.reductionPercentage ? 'has-error' : ''}`}
+                    placeholder="10"
+                    value={modalForm.reductionPercentage}
+                    onChange={(e) => handleFormFieldChange('reductionPercentage', e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                  />
+                  {modalFieldErrors.reductionPercentage ? (
+                    <span className="field-error-message">{modalFieldErrors.reductionPercentage}</span>
+                  ) : (
+                    <span className="field-hint">Reduction target (0.01% - 100%).</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="goal-target-calc-preview">
+                <div className="calc-preview-top">
+                  <span className="calc-preview-label">Calculated Target Budget:</span>
+                  <span className="calc-preview-value">
+                    <strong>{computedTarget !== null ? computedTarget : '—'}</strong> {unitLabel}
+                  </span>
+                </div>
+                <span className="calc-preview-sub">
+                  {computedTarget !== null
+                    ? `Maximum allowable emissions (${modalForm.baselineCo2eKg} ${unitLabel} − ${modalForm.reductionPercentage}%)`
+                    : 'Enter baseline and reduction % to view allowable budget.'}
+                </span>
               </div>
 
               <div className="form-row-2col">

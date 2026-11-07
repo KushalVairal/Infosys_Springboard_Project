@@ -1,9 +1,7 @@
 // Centralized API client for CarbonTrack Spring Boot REST API
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8080';
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL;
+export const API_BASE_URL = rawBaseUrl !== undefined ? rawBaseUrl : 'http://localhost:8080';
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
@@ -29,15 +27,33 @@ export function getProfileImageUrl(url) {
   ) {
     return trimmed;
   }
-  const cleanBase = API_BASE_URL.replace(/\/+$/, '');
+  const cleanBase = (API_BASE_URL || '').replace(/\/+$/, '');
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return `${cleanBase}${cleanPath}`;
+  return cleanBase ? `${cleanBase}${cleanPath}` : cleanPath;
+}
+
+export function getBadgeIconUrl(url) {
+  return getProfileImageUrl(url);
 }
 
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  let url = `${API_BASE_URL}${endpoint}`;
+  if (options.params && typeof options.params === 'object') {
+    const searchParams = new URLSearchParams();
+    Object.entries(options.params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== '') {
+        searchParams.append(key, val);
+      }
+    });
+    const queryString = searchParams.toString();
+    if (queryString) {
+      url += (url.includes('?') ? '&' : '?') + queryString;
+    }
+  }
+
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers || {})
   };
 
@@ -58,7 +74,7 @@ async function request(endpoint, options = {}) {
     response = await fetch(url, config);
   } catch {
     throw new ApiError(
-      `Unable to reach the backend server at ${API_BASE_URL}. Ensure Spring Boot is running on port 8080.`,
+      `Unable to reach the backend server at ${API_BASE_URL || 'current host'}. Ensure Spring Boot is running on port 8080.`,
       0
     );
   }
@@ -93,9 +109,10 @@ async function request(endpoint, options = {}) {
     let validationErrors = null;
 
     if (data) {
-      if (data.validationErrors && typeof data.validationErrors === 'object') {
+      if (data.validationErrors && typeof data.validationErrors === 'object' && Object.keys(data.validationErrors).length > 0) {
         validationErrors = data.validationErrors;
-        message = data.message || 'Validation failed. Please check your inputs.';
+        const fieldMsgs = Object.values(data.validationErrors).filter(Boolean);
+        message = fieldMsgs.length > 0 ? fieldMsgs.join('. ') : (data.message || 'Validation failed. Please check your inputs.');
       } else if (data.message) {
         message = data.message;
       } else if (data.error) {
@@ -211,34 +228,112 @@ export const api = {
 
   // Sustainability Goals endpoints
   goals: {
-    getMyGoals: () => request('/api/goals', { method: 'GET' }),
+    getMyGoals: async () => {
+      try {
+        return await request('/api/goals/me', { method: 'GET' });
+      } catch (err) {
+        if (err.status === 404 || err.status === 405) {
+          return await request('/api/goals', { method: 'GET' });
+        }
+        throw err;
+      }
+    },
 
-    create: ({ title, description, targetCo2eKg, startDate, endDate }) =>
-      request('/api/goals', {
+    create: ({
+      title,
+      description,
+      baselineCo2eKg,
+      reductionPercentage,
+      targetCo2eKg,
+      startDate,
+      endDate
+    }) => {
+      let baseline =
+        baselineCo2eKg !== undefined && baselineCo2eKg !== null && baselineCo2eKg !== ''
+          ? Number(baselineCo2eKg)
+          : null;
+      let reduction =
+        reductionPercentage !== undefined && reductionPercentage !== null && reductionPercentage !== ''
+          ? Number(reductionPercentage)
+          : null;
+
+      // Fallback if caller provided targetCo2eKg but not baseline/reduction
+      if ((baseline === null || isNaN(baseline)) && targetCo2eKg !== undefined && targetCo2eKg !== null && targetCo2eKg !== '') {
+        reduction = 10;
+        baseline = Number((Number(targetCo2eKg) / 0.9).toFixed(3));
+      }
+
+      const payload = {
+        title: title ? title.trim() : '',
+        description: description ? description.trim() : '',
+        startDate,
+        endDate
+      };
+
+      if (baseline !== null && !isNaN(baseline)) {
+        payload.baselineCo2eKg = Number(baseline.toFixed(3));
+      }
+      if (reduction !== null && !isNaN(reduction)) {
+        payload.reductionPercentage = Number(reduction.toFixed(2));
+      }
+
+      return request('/api/goals', {
         method: 'POST',
-        body: JSON.stringify({
-          title,
-          description: description || '',
-          targetCo2eKg: Number(targetCo2eKg),
-          startDate,
-          endDate
-        })
-      }),
+        body: JSON.stringify(payload)
+      });
+    },
 
-    update: (id, { title, description, targetCo2eKg, startDate, endDate, status }) =>
-      request(`/api/goals/${id}`, {
+    update: (
+      id,
+      {
+        title,
+        description,
+        baselineCo2eKg,
+        reductionPercentage,
+        targetCo2eKg,
+        startDate,
+        endDate,
+        status
+      }
+    ) => {
+      let baseline =
+        baselineCo2eKg !== undefined && baselineCo2eKg !== null && baselineCo2eKg !== ''
+          ? Number(baselineCo2eKg)
+          : null;
+      let reduction =
+        reductionPercentage !== undefined && reductionPercentage !== null && reductionPercentage !== ''
+          ? Number(reductionPercentage)
+          : null;
+
+      if ((baseline === null || isNaN(baseline)) && targetCo2eKg !== undefined && targetCo2eKg !== null && targetCo2eKg !== '') {
+        reduction = 10;
+        baseline = Number((Number(targetCo2eKg) / 0.9).toFixed(3));
+      }
+
+      const payload = {
+        title: title ? title.trim() : '',
+        description: description ? description.trim() : '',
+        startDate,
+        endDate,
+        status: status || 'ACTIVE'
+      };
+
+      if (baseline !== null && !isNaN(baseline)) {
+        payload.baselineCo2eKg = Number(baseline.toFixed(3));
+      }
+      if (reduction !== null && !isNaN(reduction)) {
+        payload.reductionPercentage = Number(reduction.toFixed(2));
+      }
+
+      return request(`/api/goals/${id}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          title,
-          description: description || '',
-          targetCo2eKg: Number(targetCo2eKg),
-          startDate,
-          endDate,
-          status: status || 'ACTIVE'
-        })
-      }),
+        body: JSON.stringify(payload)
+      });
+    },
 
-    delete: (id) => request(`/api/goals/${id}`, { method: 'DELETE' })
+    delete: (id) => request(`/api/goals/${id}`, { method: 'DELETE' }),
+
+    getProjection: (id) => request(`/api/goals/${id}/projection`, { method: 'GET' })
   },
 
   // Activity Log endpoints
@@ -265,6 +360,80 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ messages })
       })
+  },
+
+  // Footprint Aggregation & Analytics endpoints (Task 2 & 3)
+  analytics: {
+    getDaily: (startDate, endDate) =>
+      request(`/api/analytics/daily?startDate=${startDate}&endDate=${endDate}`, { method: 'GET' }),
+
+    getWeekly: (startDate, endDate) =>
+      request(`/api/analytics/weekly?startDate=${startDate}&endDate=${endDate}`, { method: 'GET' }),
+
+    getMonthly: (startDate, endDate) =>
+      request(`/api/analytics/monthly?startDate=${startDate}&endDate=${endDate}`, { method: 'GET' })
+  },
+
+  // Personalised Recommendations endpoints (Task 4)
+  recommendations: {
+    getWeekly: () => request('/api/recommendations/weekly', { method: 'GET' })
+  },
+
+  // Peer Benchmarking endpoints (Task 7)
+  benchmarks: {
+    getMyBenchmark: () => request('/api/benchmarks/me', { method: 'GET' })
+  },
+
+  // Badge & Achievement Engine endpoints (Task 8)
+  badges: {
+    getMyBadges: () => request('/api/badges/me', { method: 'GET' })
+  },
+
+  // Community Leaderboard endpoint
+  leaderboard: {
+    getLeaderboard: () =>
+      request('/api/leaderboard', { method: 'GET' })
+  },
+
+  // Generic HTTP methods compatible with Axios-style callers
+  get: async (endpoint, options = {}) => {
+    const data = await request(endpoint, { method: 'GET', ...options });
+    return { data };
+  },
+
+  post: async (endpoint, body, options = {}) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const data = await request(endpoint, {
+      method: 'POST',
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+      ...options
+    });
+    return { data };
+  },
+
+  put: async (endpoint, body, options = {}) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const data = await request(endpoint, {
+      method: 'PUT',
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+      ...options
+    });
+    return { data };
+  },
+
+  patch: async (endpoint, body, options = {}) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const data = await request(endpoint, {
+      method: 'PATCH',
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+      ...options
+    });
+    return { data };
+  },
+
+  delete: async (endpoint, options = {}) => {
+    const data = await request(endpoint, { method: 'DELETE', ...options });
+    return { data };
   }
 };
 
