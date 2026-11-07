@@ -256,9 +256,17 @@ export const api = {
           logDate
         })
       })
+  },
+
+  // AI assistant
+  assistant: {
+    chat: (messages) =>
+      request('/api/assistant/chat', {
+        method: 'POST',
+        body: JSON.stringify({ messages })
+      })
   }
 };
 
 export const apiClient = api;
 export default api;
-

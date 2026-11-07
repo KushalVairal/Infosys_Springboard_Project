@@ -12,5 +12,13 @@ backend.env
 .idea/
 .vscode/
 
-*.example
-carbontrack-backend/.env.example
+# Secrets and local config - never commit these
+carbontrack-backend/.env
+application-local.properties
+application-secret*.properties
+*.pem
+*.key
+*.p12
+*.jks
+
+.env
