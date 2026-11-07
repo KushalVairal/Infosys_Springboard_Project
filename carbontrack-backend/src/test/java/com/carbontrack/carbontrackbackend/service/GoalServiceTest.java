@@ -1,3 +1,4 @@
+
 package com.carbontrack.carbontrackbackend.service;
 
 import com.carbontrack.carbontrackbackend.dto.goal.CreateGoalRequestDTO;
@@ -24,6 +25,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,12 +41,15 @@ class GoalServiceTest {
     private UserRepository userRepository;
 
     private GoalService goalService;
-
     private User user;
 
     @BeforeEach
     void setUp() {
-        goalService = new GoalService(goalRepository, activityLogRepository, userRepository);
+        goalService = new GoalService(
+                goalRepository,
+                activityLogRepository,
+                userRepository
+        );
 
         user = new User();
         ReflectionTestUtils.setField(user, "id", 101L);
@@ -52,159 +57,272 @@ class GoalServiceTest {
         user.setEmail("target@example.com");
     }
 
+    private CreateGoalRequestDTO createRequest(
+            String title,
+            String description,
+            String baseline,
+            String reduction,
+            LocalDate startDate,
+            LocalDate endDate) {
+
+        CreateGoalRequestDTO request = new CreateGoalRequestDTO();
+        request.setTitle(title);
+        request.setDescription(description);
+        request.setBaselineCo2eKg(new BigDecimal(baseline));
+        request.setReductionPercentage(new BigDecimal(reduction));
+        request.setStartDate(startDate);
+        request.setEndDate(endDate);
+        return request;
+    }
+
+    private UpdateGoalRequestDTO updateRequest(
+            String title,
+            String description,
+            String baseline,
+            String reduction,
+            LocalDate startDate,
+            LocalDate endDate,
+            String status) {
+
+        UpdateGoalRequestDTO request = new UpdateGoalRequestDTO();
+        request.setTitle(title);
+        request.setDescription(description);
+        request.setBaselineCo2eKg(new BigDecimal(baseline));
+        request.setReductionPercentage(new BigDecimal(reduction));
+        request.setStartDate(startDate);
+        request.setEndDate(endDate);
+        request.setStatus(status);
+        return request;
+    }
+
+    private Goal createGoal(
+            Long id,
+            String title,
+            String baseline,
+            String reduction,
+            String target,
+            LocalDate startDate,
+            LocalDate endDate) {
+
+        Goal goal = new Goal();
+        ReflectionTestUtils.setField(goal, "id", id);
+        goal.setUser(user);
+        goal.setTitle(title);
+        goal.setBaselineCo2eKg(new BigDecimal(baseline));
+        goal.setReductionPercentage(new BigDecimal(reduction));
+        goal.setTargetCo2eKg(new BigDecimal(target));
+        goal.setStartDate(startDate);
+        goal.setEndDate(endDate);
+        goal.setStatus("ACTIVE");
+
+        return goal;
+    }
+
     @Test
-    void shouldCreateGoalSuccessfully() {
-        when(userRepository.findByEmail("target@example.com")).thenReturn(Optional.of(user));
+    void shouldCreateGoalSuccessfullyAndCalculateTarget() {
+        when(userRepository.findByEmail("target@example.com"))
+                .thenReturn(Optional.of(user));
+
         when(goalRepository.save(any(Goal.class))).thenAnswer(invocation -> {
-            Goal g = invocation.getArgument(0);
-            ReflectionTestUtils.setField(g, "id", 1L);
-            return g;
+            Goal goal = invocation.getArgument(0);
+            ReflectionTestUtils.setField(goal, "id", 1L);
+            return goal;
         });
 
-        CreateGoalRequestDTO req = new CreateGoalRequestDTO(
+        CreateGoalRequestDTO request = createRequest(
                 "Cut Electricity 20%",
                 "Lower monthly home grid emissions",
-                new BigDecimal("80.000"),
+                "100.000",
+                "20.00",
                 LocalDate.now(),
                 LocalDate.now().plusMonths(1)
         );
 
-        GoalResponseDTO res = goalService.createGoal("target@example.com", req);
+        GoalResponseDTO response = goalService.createGoal(
+                "target@example.com",
+                request
+        );
 
-        assertNotNull(res);
-        assertEquals("Cut Electricity 20%", res.getTitle());
-        assertEquals(new BigDecimal("80.000"), res.getTargetCo2eKg());
-        assertEquals("ACTIVE", res.getStatus());
+        assertNotNull(response);
+        assertEquals("Cut Electricity 20%", response.getTitle());
+        assertEquals(new BigDecimal("100.000"), response.getBaselineCo2eKg());
+        assertEquals(new BigDecimal("20.00"), response.getReductionPercentage());
+        assertEquals(new BigDecimal("80.000"), response.getTargetCo2eKg());
+        assertEquals("ACTIVE", response.getStatus());
+
+        verify(goalRepository).save(any(Goal.class));
     }
 
     @Test
     void shouldRejectWhenEndDateIsBeforeStartDate() {
-        when(userRepository.findByEmail("target@example.com")).thenReturn(Optional.of(user));
-
-        CreateGoalRequestDTO req = new CreateGoalRequestDTO(
+        CreateGoalRequestDTO request = createRequest(
                 "Invalid Dates Goal",
                 null,
-                new BigDecimal("50.000"),
+                "100.000",
+                "20.00",
                 LocalDate.of(2026, 6, 15),
                 LocalDate.of(2026, 6, 1)
         );
 
         assertThrows(ResponseStatusException.class, () ->
-                goalService.createGoal("target@example.com", req)
+                goalService.createGoal("target@example.com", request)
         );
+
+        verify(goalRepository, never()).save(any(Goal.class));
     }
 
     @Test
-    void shouldCalculateProgressAccuratelyFromActivities() {
-        Goal goal = new Goal();
-        ReflectionTestUtils.setField(goal, "id", 1L);
-        goal.setUser(user);
-        goal.setTitle("Monthly Budget");
-        goal.setTargetCo2eKg(new BigDecimal("100.000"));
-        goal.setStartDate(LocalDate.now().minusDays(10));
-        goal.setEndDate(LocalDate.now().plusDays(20));
-        goal.setStatus("ACTIVE");
+    void shouldCalculateProgressFromActivities() {
+        // Baseline 125 kg, reduction target 20% => target 100 kg.
+        // Current emissions 112.5 kg means 50% of the required
+        // 25 kg reduction has been achieved.
+        Goal goal = createGoal(
+                1L,
+                "Monthly Budget",
+                "125.000",
+                "20.00",
+                "100.000",
+                LocalDate.now().minusDays(10),
+                LocalDate.now().plusDays(20)
+        );
 
-        when(userRepository.findByEmail("target@example.com")).thenReturn(Optional.of(user));
-        when(goalRepository.findByUserIdOrderByCreatedAtDesc(101L)).thenReturn(List.of(goal));
-        when(activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(eq(101L), any(LocalDate.class), any(LocalDate.class)))
-                .thenReturn(new BigDecimal("45.500"));
+        when(userRepository.findByEmail("target@example.com"))
+                .thenReturn(Optional.of(user));
 
-        List<GoalResponseDTO> goals = goalService.getMyGoals("target@example.com");
+        when(goalRepository.findByUserIdOrderByCreatedAtDesc(101L))
+                .thenReturn(List.of(goal));
+
+        when(activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(
+                eq(101L), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(new BigDecimal("112.500"));
+
+        List<GoalResponseDTO> goals =
+                goalService.getMyGoals("target@example.com");
 
         assertEquals(1, goals.size());
-        GoalResponseDTO g = goals.get(0);
-        assertEquals(new BigDecimal("45.500"), g.getCurrentCo2eKg());
-        assertEquals(45.5, g.getProgressPercentage());
-        assertEquals("ACTIVE", g.getStatus());
-        assertFalse(g.isCompleted());
-        assertFalse(g.isOverdue());
+
+        GoalResponseDTO response = goals.get(0);
+
+        assertEquals(new BigDecimal("112.500"), response.getCurrentCo2eKg());
+        assertEquals(50.0, response.getProgressPercentage());
+        assertEquals("EXCEEDED", response.getStatus());
+        assertFalse(response.isCompleted());
+        assertFalse(response.isOverdue());
     }
 
     @Test
-    void shouldMarkPastGoalAsCompletedWhenWithinBudget() {
-        Goal goal = new Goal();
-        ReflectionTestUtils.setField(goal, "id", 2L);
-        goal.setUser(user);
-        goal.setTitle("Past Month Target");
-        goal.setTargetCo2eKg(new BigDecimal("100.000"));
-        goal.setStartDate(LocalDate.now().minusMonths(2));
-        goal.setEndDate(LocalDate.now().minusMonths(1));
-        goal.setStatus("ACTIVE");
+    void shouldMarkPastGoalAsCompletedWhenWithinTarget() {
+        Goal goal = createGoal(
+                2L,
+                "Past Month Target",
+                "125.000",
+                "20.00",
+                "100.000",
+                LocalDate.now().minusMonths(2),
+                LocalDate.now().minusMonths(1)
+        );
 
-        when(activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(eq(101L), any(LocalDate.class), any(LocalDate.class)))
+        when(activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(
+                eq(101L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(new BigDecimal("82.000"));
 
-        GoalResponseDTO dto = goalService.convertToDTO(goal);
+        GoalResponseDTO response = goalService.convertToDTO(goal);
 
-        assertTrue(dto.isCompleted());
-        assertFalse(dto.isOverdue());
-        assertEquals("COMPLETED", dto.getStatus());
+        assertEquals(new BigDecimal("82.000"), response.getCurrentCo2eKg());
+        assertTrue(response.isCompleted());
+        assertFalse(response.isOverdue());
+        assertEquals("COMPLETED", response.getStatus());
     }
 
     @Test
-    void shouldMarkPastGoalAsOverdueWhenExceededBudget() {
-        Goal goal = new Goal();
-        ReflectionTestUtils.setField(goal, "id", 3L);
-        goal.setUser(user);
-        goal.setTitle("Past Month Target Exceeded");
-        goal.setTargetCo2eKg(new BigDecimal("100.000"));
-        goal.setStartDate(LocalDate.now().minusMonths(2));
-        goal.setEndDate(LocalDate.now().minusMonths(1));
-        goal.setStatus("ACTIVE");
+    void shouldMarkPastGoalAsOverdueWhenTargetIsExceeded() {
+        Goal goal = createGoal(
+                3L,
+                "Past Month Target Exceeded",
+                "125.000",
+                "20.00",
+                "100.000",
+                LocalDate.now().minusMonths(2),
+                LocalDate.now().minusMonths(1)
+        );
 
-        when(activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(eq(101L), any(LocalDate.class), any(LocalDate.class)))
+        when(activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(
+                eq(101L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(new BigDecimal("125.000"));
 
-        GoalResponseDTO dto = goalService.convertToDTO(goal);
+        GoalResponseDTO response = goalService.convertToDTO(goal);
 
-        assertFalse(dto.isCompleted());
-        assertTrue(dto.isOverdue());
-        assertEquals("OVERDUE", dto.getStatus());
+        assertFalse(response.isCompleted());
+        assertTrue(response.isOverdue());
+        assertEquals("OVERDUE", response.getStatus());
     }
 
     @Test
-    void shouldUpdateGoalFields() {
-        Goal goal = new Goal();
-        ReflectionTestUtils.setField(goal, "id", 5L);
-        goal.setUser(user);
-        goal.setTitle("Original Title");
-        goal.setTargetCo2eKg(new BigDecimal("50.000"));
-        goal.setStartDate(LocalDate.now());
-        goal.setEndDate(LocalDate.now().plusWeeks(2));
-        goal.setStatus("ACTIVE");
+    void shouldUpdateGoalFieldsAndRecalculateTarget() {
+        Goal goal = createGoal(
+                5L,
+                "Original Title",
+                "100.000",
+                "20.00",
+                "80.000",
+                LocalDate.now(),
+                LocalDate.now().plusWeeks(2)
+        );
 
-        when(userRepository.findByEmail("target@example.com")).thenReturn(Optional.of(user));
-        when(goalRepository.findByIdAndUserId(5L, 101L)).thenReturn(Optional.of(goal));
-        when(goalRepository.save(any(Goal.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findByEmail("target@example.com"))
+                .thenReturn(Optional.of(user));
 
-        UpdateGoalRequestDTO updateReq = new UpdateGoalRequestDTO(
+        when(goalRepository.findByIdAndUserId(5L, 101L))
+                .thenReturn(Optional.of(goal));
+
+        when(goalRepository.save(any(Goal.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        UpdateGoalRequestDTO request = updateRequest(
                 "Updated Title",
                 "New Description",
-                new BigDecimal("60.000"),
+                "100.000",
+                "40.00",
                 LocalDate.now(),
                 LocalDate.now().plusWeeks(3),
                 "ACTIVE"
         );
 
-        GoalResponseDTO updated = goalService.updateGoal("target@example.com", 5L, updateReq);
+        GoalResponseDTO response = goalService.updateGoal(
+                "target@example.com",
+                5L,
+                request
+        );
 
-        assertEquals("Updated Title", updated.getTitle());
-        assertEquals("New Description", updated.getDescription());
-        assertEquals(new BigDecimal("60.000"), updated.getTargetCo2eKg());
+        assertEquals("Updated Title", response.getTitle());
+        assertEquals("New Description", response.getDescription());
+        assertEquals(new BigDecimal("100.000"), response.getBaselineCo2eKg());
+        assertEquals(new BigDecimal("40.00"), response.getReductionPercentage());
+        assertEquals(new BigDecimal("60.000"), response.getTargetCo2eKg());
     }
 
     @Test
-    void shouldThrowNotFoundWhenUpdatingGoalOfAnotherUser() {
-        when(userRepository.findByEmail("target@example.com")).thenReturn(Optional.of(user));
-        when(goalRepository.findByIdAndUserId(999L, 101L)).thenReturn(Optional.empty());
+    void shouldThrowNotFoundWhenUpdatingAnotherUsersGoal() {
+        when(userRepository.findByEmail("target@example.com"))
+                .thenReturn(Optional.of(user));
 
-        UpdateGoalRequestDTO updateReq = new UpdateGoalRequestDTO(
-                "Title", null, new BigDecimal("50.000"), LocalDate.now(), LocalDate.now().plusDays(1), "ACTIVE"
+        when(goalRepository.findByIdAndUserId(999L, 101L))
+                .thenReturn(Optional.empty());
+
+        UpdateGoalRequestDTO request = updateRequest(
+                "Title",
+                null,
+                "100.000",
+                "20.00",
+                LocalDate.now(),
+                LocalDate.now().plusDays(1),
+                "ACTIVE"
         );
 
         assertThrows(ResponseStatusException.class, () ->
-                goalService.updateGoal("target@example.com", 999L, updateReq)
+                goalService.updateGoal("target@example.com", 999L, request)
         );
+
+        verify(goalRepository, never()).save(any(Goal.class));
     }
 }

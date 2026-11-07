@@ -74,8 +74,8 @@ public final class DotenvLoader {
                 String rawValue = line.substring(equalIndex + 1).trim();
                 String value = unquote(rawValue);
 
-                // Set as System property if requested and not already set
-                if (setSystemProperties && System.getProperty(key) == null && System.getenv(key) == null) {
+                // Set as System property if requested so that local .env consistently takes precedence
+                if (setSystemProperties) {
                     System.setProperty(key, value);
                 }
 

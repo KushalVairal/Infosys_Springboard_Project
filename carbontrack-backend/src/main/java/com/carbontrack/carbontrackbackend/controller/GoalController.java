@@ -1,3 +1,4 @@
+
 package com.carbontrack.carbontrackbackend.controller;
 
 import com.carbontrack.carbontrackbackend.dto.goal.CreateGoalRequestDTO;
@@ -6,8 +7,8 @@ import com.carbontrack.carbontrackbackend.dto.goal.UpdateGoalRequestDTO;
 import com.carbontrack.carbontrackbackend.service.GoalService;
 
 import jakarta.validation.Valid;
-
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,40 +24,50 @@ public class GoalController {
         this.goalService = goalService;
     }
 
-    @GetMapping
-    public List<GoalResponseDTO> getMyGoals(Authentication authentication) {
-        return goalService.getMyGoals(authentication.getName());
+    @PostMapping
+    public ResponseEntity<GoalResponseDTO> createGoal(
+            Authentication authentication,
+            @Valid @RequestBody CreateGoalRequestDTO request) {
+
+        GoalResponseDTO response = goalService.createGoal(
+                authentication.getName(), request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/me")
-    public List<GoalResponseDTO> getMyGoalsMe(Authentication authentication) {
-        return goalService.getMyGoals(authentication.getName());
+    public ResponseEntity<List<GoalResponseDTO>> getMyGoals(
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                goalService.getMyGoals(authentication.getName()));
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public GoalResponseDTO createGoal(
+    @GetMapping("/{id}/progress")
+    public ResponseEntity<GoalResponseDTO> getGoalProgress(
             Authentication authentication,
-            @Valid @RequestBody CreateGoalRequestDTO request
-    ) {
-        return goalService.createGoal(authentication.getName(), request);
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                goalService.getGoalProgress(authentication.getName(), id));
     }
 
     @PutMapping("/{id}")
-    public GoalResponseDTO updateGoal(
+    public ResponseEntity<GoalResponseDTO> updateGoal(
             Authentication authentication,
             @PathVariable Long id,
-            @Valid @RequestBody UpdateGoalRequestDTO request
-    ) {
-        return goalService.updateGoal(authentication.getName(), id, request);
+            @Valid @RequestBody UpdateGoalRequestDTO request) {
+
+        return ResponseEntity.ok(
+                goalService.updateGoal(authentication.getName(), id, request));
     }
 
     @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteGoal(
+    public ResponseEntity<Void> deleteGoal(
             Authentication authentication,
-            @PathVariable Long id
-    ) {
+            @PathVariable Long id) {
+
         goalService.deleteGoal(authentication.getName(), id);
+        return ResponseEntity.noContent().build();
     }
 }

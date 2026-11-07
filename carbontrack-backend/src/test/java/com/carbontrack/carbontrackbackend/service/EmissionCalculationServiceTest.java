@@ -148,5 +148,128 @@ class EmissionCalculationServiceTest {
         );
     }
 
+    @Test
+    void shouldCalculateEmissionsForSupportedInrCurrencyUnitForClothing() {
+        LocalDate date = LocalDate.of(2026, 10, 15);
+        EmissionFactor inrFactor = new EmissionFactor();
+        inrFactor.setActivityType("CLOTHING");
+        inrFactor.setUnit("inr");
+        inrFactor.setKgCo2ePerUnit(new BigDecimal("0.005000"));
+
+        when(emissionFactorRepository
+                .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                        "CLOTHING", "inr", date))
+                .thenReturn(Optional.of(inrFactor));
+
+        // ₹2,000 spend on clothing * 0.005 = 10.000000 kg CO2e
+        BigDecimal result = calculationService.calculateEmissions(
+                "CLOTHING",
+                "inr",
+                new BigDecimal("2000.00"),
+                date
+        );
+
+        assertEquals(0, new BigDecimal("10.000000").compareTo(result));
+    }
+
+    @Test
+    void shouldCalculateEmissionsForSupportedUsdCurrencyUnitForClothing() {
+        LocalDate date = LocalDate.of(2026, 10, 15);
+        EmissionFactor usdFactor = new EmissionFactor();
+        usdFactor.setActivityType("CLOTHING");
+        usdFactor.setUnit("usd");
+        usdFactor.setKgCo2ePerUnit(new BigDecimal("0.415000"));
+
+        when(emissionFactorRepository
+                .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                        "CLOTHING", "usd", date))
+                .thenReturn(Optional.of(usdFactor));
+
+        // $50 spend on clothing * 0.415 = 20.750000 kg CO2e
+        BigDecimal result = calculationService.calculateEmissions(
+                "CLOTHING",
+                "usd",
+                new BigDecimal("50.00"),
+                date
+        );
+
+        assertEquals(0, new BigDecimal("20.750000").compareTo(result));
+    }
+
+    @Test
+    void shouldPreserveExistingItemBasedCalculationForClothing() {
+        LocalDate date = LocalDate.of(2026, 10, 15);
+        EmissionFactor itemFactor = new EmissionFactor();
+        itemFactor.setActivityType("CLOTHING");
+        itemFactor.setUnit("item");
+        itemFactor.setKgCo2ePerUnit(new BigDecimal("10.000000"));
+
+        when(emissionFactorRepository
+                .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                        "CLOTHING", "item", date))
+                .thenReturn(Optional.of(itemFactor));
+
+        // 4 clothing items * 10.00 = 40.000000 kg CO2e
+        BigDecimal result = calculationService.calculateEmissions(
+                "CLOTHING",
+                "item",
+                new BigDecimal("4"),
+                date
+        );
+
+        assertEquals(0, new BigDecimal("40.000000").compareTo(result));
+    }
+
+    @Test
+    void shouldResolveUnitCaseInsensitivelyViaFallback() {
+        LocalDate date = LocalDate.of(2026, 10, 15);
+        EmissionFactor inrFactor = new EmissionFactor();
+        inrFactor.setActivityType("CLOTHING");
+        inrFactor.setUnit("inr");
+        inrFactor.setKgCo2ePerUnit(new BigDecimal("0.005000"));
+
+        // Uppercase lookup misses, but lowercase fallback hits
+        when(emissionFactorRepository
+                .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                        "CLOTHING", "INR", date))
+                .thenReturn(Optional.empty());
+
+        when(emissionFactorRepository
+                .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                        "CLOTHING", "inr", date))
+                .thenReturn(Optional.of(inrFactor));
+
+        BigDecimal result = calculationService.calculateEmissions(
+                "CLOTHING",
+                "INR",
+                new BigDecimal("1000.00"),
+                date
+        );
+
+        assertEquals(0, new BigDecimal("5.000000").compareTo(result));
+    }
+
+    @Test
+    void shouldRejectUnsupportedCurrencyUnit() {
+        LocalDate date = LocalDate.of(2026, 10, 15);
+
+        when(emissionFactorRepository
+                .findFirstByActivityTypeAndUnitAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                        any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> calculationService.calculateEmissions(
+                        "CLOTHING",
+                        "EUR",
+                        new BigDecimal("100.00"),
+                        date
+                )
+        );
+
+        assertEquals(400, ex.getStatusCode().value());
+        assertTrue(ex.getReason().contains("No emission factor found"));
+    }
 }
 

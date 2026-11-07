@@ -1,3 +1,4 @@
+
 package com.carbontrack.carbontrackbackend.service;
 
 import com.carbontrack.carbontrackbackend.dto.goal.CreateGoalRequestDTO;
@@ -16,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import com.carbontrack.carbontrackbackend.repository.GoalAlertRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -25,40 +28,58 @@ public class GoalService {
     private final GoalRepository goalRepository;
     private final ActivityLogRepository activityLogRepository;
     private final UserRepository userRepository;
+    private final GoalAlertRepository goalAlertRepository;
+
+    @Autowired
+    public GoalService(
+            GoalRepository goalRepository,
+            ActivityLogRepository activityLogRepository,
+            UserRepository userRepository,
+            GoalAlertRepository goalAlertRepository) {
+        this.goalRepository = goalRepository;
+        this.activityLogRepository = activityLogRepository;
+        this.userRepository = userRepository;
+        this.goalAlertRepository = goalAlertRepository;
+    }
 
     public GoalService(
             GoalRepository goalRepository,
             ActivityLogRepository activityLogRepository,
-            UserRepository userRepository
-    ) {
-        this.goalRepository = goalRepository;
-        this.activityLogRepository = activityLogRepository;
-        this.userRepository = userRepository;
+            UserRepository userRepository) {
+        this(goalRepository, activityLogRepository, userRepository, null);
     }
 
     @Transactional(readOnly = true)
     public List<GoalResponseDTO> getMyGoals(String email) {
         User user = findUser(email);
-        List<Goal> goals = goalRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
-        return goals.stream().map(this::convertToDTO).toList();
+
+        return goalRepository
+                .findByUserIdOrderByCreatedAtDesc(user.getId())
+                .stream()
+                .map(this::convertToDTO)
+                .toList();
     }
 
     @Transactional
-    public GoalResponseDTO createGoal(String email, CreateGoalRequestDTO request) {
-        User user = findUser(email);
+    public GoalResponseDTO createGoal(
+            String email,
+            CreateGoalRequestDTO request) {
 
-        if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "End date cannot be before start date"
-            );
-        }
+        validateDates(request.getStartDate(), request.getEndDate());
+
+        User user = findUser(email);
 
         Goal goal = new Goal();
         goal.setUser(user);
         goal.setTitle(request.getTitle().trim());
-        goal.setDescription(request.getDescription() != null ? request.getDescription().trim() : null);
-        goal.setTargetCo2eKg(request.getTargetCo2eKg().setScale(3, RoundingMode.HALF_UP));
+        goal.setDescription(trimOrNull(request.getDescription()));
+        goal.setBaselineCo2eKg(
+                request.getBaselineCo2eKg().setScale(3, RoundingMode.HALF_UP));
+        goal.setReductionPercentage(
+                request.getReductionPercentage().setScale(2, RoundingMode.HALF_UP));
+        goal.setTargetCo2eKg(calculateTarget(
+                request.getBaselineCo2eKg(),
+                request.getReductionPercentage()));
         goal.setStartDate(request.getStartDate());
         goal.setEndDate(request.getEndDate());
         goal.setStatus("ACTIVE");
@@ -68,29 +89,33 @@ public class GoalService {
     }
 
     @Transactional
-    public GoalResponseDTO updateGoal(String email, Long goalId, UpdateGoalRequestDTO request) {
+    public GoalResponseDTO updateGoal(
+            String email,
+            Long goalId,
+            UpdateGoalRequestDTO request) {
+
+        validateDates(request.getStartDate(), request.getEndDate());
+
         User user = findUser(email);
 
-        Goal goal = goalRepository.findByIdAndUserId(goalId, user.getId())
+        Goal goal = goalRepository
+                .findByIdAndUserId(goalId, user.getId())
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Goal not found"
-                ));
-
-        if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "End date cannot be before start date"
-            );
-        }
+                        HttpStatus.NOT_FOUND, "Goal not found"));
 
         goal.setTitle(request.getTitle().trim());
-        goal.setDescription(request.getDescription() != null ? request.getDescription().trim() : null);
-        goal.setTargetCo2eKg(request.getTargetCo2eKg().setScale(3, RoundingMode.HALF_UP));
+        goal.setDescription(trimOrNull(request.getDescription()));
+        goal.setBaselineCo2eKg(
+                request.getBaselineCo2eKg().setScale(3, RoundingMode.HALF_UP));
+        goal.setReductionPercentage(
+                request.getReductionPercentage().setScale(2, RoundingMode.HALF_UP));
+        goal.setTargetCo2eKg(calculateTarget(
+                request.getBaselineCo2eKg(),
+                request.getReductionPercentage()));
         goal.setStartDate(request.getStartDate());
         goal.setEndDate(request.getEndDate());
 
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+        if (request.getStatus() != null) {
             goal.setStatus(request.getStatus().trim().toUpperCase());
         }
 
@@ -98,25 +123,53 @@ public class GoalService {
         return convertToDTO(saved);
     }
 
+    @Transactional(readOnly = true)
+    public GoalResponseDTO getGoalProgress(String email, Long goalId) {
+        User user = findUser(email);
+
+        Goal goal = goalRepository
+                .findByIdAndUserId(goalId, user.getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Goal not found"));
+
+        return convertToDTO(goal);
+    }
+
     @Transactional
     public void deleteGoal(String email, Long goalId) {
         User user = findUser(email);
 
-        Goal goal = goalRepository.findByIdAndUserId(goalId, user.getId())
+        Goal goal = goalRepository
+                .findByIdAndUserId(goalId, user.getId())
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Goal not found"
-                ));
+                        HttpStatus.NOT_FOUND, "Goal not found"));
 
+        if (goalAlertRepository != null) {
+            goalAlertRepository.deleteByGoalId(goalId);
+        }
         goalRepository.delete(goal);
     }
 
+    private BigDecimal calculateTarget(
+            BigDecimal baseline,
+            BigDecimal reductionPercentage) {
+
+        BigDecimal reductionFraction = reductionPercentage.divide(
+                BigDecimal.valueOf(100),
+                6,
+                RoundingMode.HALF_UP);
+
+        return baseline.multiply(BigDecimal.ONE.subtract(reductionFraction))
+                .setScale(3, RoundingMode.HALF_UP);
+    }
+
+    @Transactional(readOnly = true)
     public GoalResponseDTO convertToDTO(Goal goal) {
-        BigDecimal current = activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(
-                goal.getUser().getId(),
-                goal.getStartDate(),
-                goal.getEndDate()
-        );
+        BigDecimal current = activityLogRepository
+                .sumCo2eKgByUserIdAndLogDateBetween(
+                        goal.getUser().getId(),
+                        goal.getStartDate(),
+                        goal.getEndDate());
 
         if (current == null) {
             current = BigDecimal.ZERO;
@@ -124,45 +177,56 @@ public class GoalService {
 
         BigDecimal currentCo2eKg = current.setScale(3, RoundingMode.HALF_UP);
         BigDecimal target = goal.getTargetCo2eKg();
+        BigDecimal baseline = goal.getBaselineCo2eKg();
 
         double progressPct = 0.0;
-        if (target != null && target.compareTo(BigDecimal.ZERO) > 0) {
-            progressPct = currentCo2eKg.doubleValue() / target.doubleValue() * 100.0;
+
+        if (baseline != null && target != null
+                && baseline.compareTo(target) > 0) {
+
+            BigDecimal reductionAchieved = baseline.subtract(currentCo2eKg);
+            BigDecimal reductionNeeded = baseline.subtract(target);
+
+            progressPct = reductionAchieved
+                    .divide(reductionNeeded, 6, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100))
+                    .doubleValue();
+
+            progressPct = Math.max(0.0, Math.min(100.0, progressPct));
             progressPct = Math.round(progressPct * 10.0) / 10.0;
         }
 
-        LocalDate now = LocalDate.now();
-        boolean isCancelled = "CANCELLED".equalsIgnoreCase(goal.getStatus());
-        boolean isPastEndDate = now.isAfter(goal.getEndDate());
-        boolean withinBudget = currentCo2eKg.compareTo(target) <= 0;
+        LocalDate today = LocalDate.now();
+        boolean cancelled = "CANCELLED".equalsIgnoreCase(goal.getStatus());
+        boolean pastEndDate = today.isAfter(goal.getEndDate());
+        boolean withinBudget = target != null
+                && currentCo2eKg.compareTo(target) <= 0;
 
         String dynamicStatus;
         boolean completed = false;
         boolean overdue = false;
 
-        if (isCancelled) {
+        if (cancelled) {
             dynamicStatus = "CANCELLED";
-        } else if (isPastEndDate) {
-            if (withinBudget) {
-                dynamicStatus = "COMPLETED";
-                completed = true;
-            } else {
-                dynamicStatus = "OVERDUE";
-                overdue = true;
-            }
+        } else if (pastEndDate && withinBudget) {
+            dynamicStatus = "COMPLETED";
+            completed = true;
+        } else if (pastEndDate) {
+            dynamicStatus = "OVERDUE";
+            overdue = true;
+        } else if (withinBudget) {
+            dynamicStatus = "ACTIVE";
         } else {
-            if (withinBudget) {
-                dynamicStatus = "ACTIVE";
-            } else {
-                dynamicStatus = "EXCEEDED";
-            }
+            dynamicStatus = "EXCEEDED";
         }
 
         return new GoalResponseDTO(
                 goal.getId(),
                 goal.getTitle(),
                 goal.getDescription(),
-                goal.getTargetCo2eKg(),
+                baseline,
+                goal.getReductionPercentage(),
+                target,
                 currentCo2eKg,
                 progressPct,
                 goal.getStartDate(),
@@ -170,15 +234,24 @@ public class GoalService {
                 dynamicStatus,
                 completed,
                 overdue,
-                goal.getCreatedAt()
-        );
+                goal.getCreatedAt());
+    }
+
+    private void validateDates(LocalDate startDate, LocalDate endDate) {
+        if (endDate.isBefore(startDate)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "End date cannot be before start date");
+        }
+    }
+
+    private String trimOrNull(String value) {
+        return value == null ? null : value.trim();
     }
 
     private User findUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "User not found"
-                ));
+                        HttpStatus.NOT_FOUND, "User not found"));
     }
 }

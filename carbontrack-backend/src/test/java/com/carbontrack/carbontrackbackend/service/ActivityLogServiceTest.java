@@ -156,5 +156,39 @@ class ActivityLogServiceTest {
         verify(activityLogRepository, never()).save(any(ActivityLog.class));
     }
 
+    @Test
+    void shouldPublishActivityLoggedEventWhenEventPublisherProvided() {
+        org.springframework.context.ApplicationEventPublisher publisher = mock(org.springframework.context.ApplicationEventPublisher.class);
+        ActivityLogService serviceWithPublisher = new ActivityLogService(
+                activityLogRepository,
+                emissionCalculationService,
+                userRepository,
+                publisher
+        );
+
+        when(userRepository.findByEmail("carbonuser@example.com")).thenReturn(Optional.of(user));
+        when(user.getId()).thenReturn(101L);
+
+        LocalDate date = LocalDate.now().minusDays(1);
+        ActivityLogRequestDTO request = new ActivityLogRequestDTO();
+        request.setCategory("TRANSPORT");
+        request.setActivityType("CAR_PETROL");
+        request.setQuantity(new BigDecimal("10"));
+        request.setUnit("km");
+        request.setLogDate(date);
+
+        when(emissionCalculationService.calculateEmissions(any(), any(), any(), any()))
+                .thenReturn(new BigDecimal("1.800000"));
+
+        when(activityLogRepository.save(any(ActivityLog.class))).thenAnswer(inv -> {
+            ActivityLog a = inv.getArgument(0);
+            org.springframework.test.util.ReflectionTestUtils.setField(a, "id", 999L);
+            return a;
+        });
+
+        serviceWithPublisher.createActivity("carbonuser@example.com", request);
+
+        verify(publisher, times(1)).publishEvent(any(com.carbontrack.carbontrackbackend.event.ActivityLoggedEvent.class));
+    }
 }
 
