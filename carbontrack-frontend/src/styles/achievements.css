@@ -1,0 +1,140 @@
+.leaderboard-rewards-section,
+.personal-reward-collection {
+  margin: 28px 0;
+  padding: 24px;
+  border-radius: 18px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.leaderboard-rewards-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.leaderboard-rewards-header h2,
+.personal-reward-collection h2 {
+  margin: 0 0 8px;
+}
+
+.reward-period-select {
+  padding: 10px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--border-color, #ccc);
+  background: var(--card-bg, #fff);
+  color: inherit;
+}
+
+.reward-current-status {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.reward-current-status > div {
+  padding: 18px;
+  border-radius: 12px;
+  background: var(--background-secondary, #f4f7f4);
+}
+
+.reward-current-status span {
+  display: block;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.reward-current-status h3 {
+  margin: 8px 0 0;
+}
+
+.reward-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.reward-celebration-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 15, 10, 0.82);
+  backdrop-filter: blur(9px);
+}
+
+.reward-celebration-modal {
+  position: relative;
+  width: min(460px, 100%);
+  padding: 36px 28px;
+  border-radius: 24px;
+  text-align: center;
+  color: #fff;
+  background: linear-gradient(145deg, #102d20, #1d4932);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+  animation: rewardModalIn 0.35s ease;
+}
+
+.reward-celebration-close {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  border: 0;
+  background: transparent;
+  color: white;
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.celebration-medal {
+  font-size: 76px;
+  margin-bottom: 12px;
+}
+
+.reward-celebration-modal h2 {
+  color: #f5d77b;
+  margin-bottom: 12px;
+}
+
+.celebration-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 24px 0;
+  text-align: left;
+}
+
+.celebration-stats span {
+  opacity: 0.75;
+}
+
+@keyframes rewardModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 600px) {
+  .reward-current-status {
+    grid-template-columns: 1fr;
+  }
+
+  .reward-actions {
+    flex-direction: column;
+  }
+
+  .reward-actions button {
+    width: 100%;
+  }
+}

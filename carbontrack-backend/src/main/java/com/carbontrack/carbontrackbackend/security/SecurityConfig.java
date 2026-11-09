@@ -77,7 +77,12 @@ public class SecurityConfig {
                                 "/api/auth/reset-password",
                                 "/oauth2/**",
                                 "/login/oauth2/**"
-                        ).permitAll()
+                                ).permitAll()
+
+                                .requestMatchers(
+                                org.springframework.http.HttpMethod.GET,
+                                "/api/emission-factors"
+                                ).permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users/profile-image/**").permitAll()
                         .anyRequest().authenticated()
                 )

@@ -323,6 +323,17 @@ export const api = {
 
     getProjection: (id) => request(`/api/goals/${id}/projection`, { method: 'GET' })
   },
+  // Emission Factor endpoints
+  emissionFactors: {
+    getAll: () =>
+      request('/api/emission-factors', { method: 'GET' }),
+
+    getByActivityType: (activityType) =>
+      request(
+        `/api/emission-factors?activityType=${encodeURIComponent(activityType)}`,
+        { method: 'GET' }
+      )
+  },
 
   // Activity Log endpoints
   activities: {
@@ -367,11 +378,26 @@ export const api = {
   badges: {
     getMyBadges: () => request('/api/badges/me', { method: 'GET' })
   },
+    // Leaderboard Achievement Rewards
+  achievements: {
+    getMyAchievements: () =>
+      request('/api/achievements/me', { method: 'GET' }),
+
+    claim: (period) =>
+      request(
+        `/api/achievements/claim?period=${encodeURIComponent(period)}`,
+        { method: 'POST' }
+      )
+  },
+
   // Community Leaderboard endpoint
-leaderboard: {
-  getLeaderboard: () =>
-    request('/api/leaderboard', { method: 'GET' })
-}
+  leaderboard: {
+    getLeaderboard: (period = 'MONTHLY') =>
+      request(`/api/leaderboard?period=${encodeURIComponent(period)}`, {
+        method: 'GET'
+      })
+  }
+
 
 };
 

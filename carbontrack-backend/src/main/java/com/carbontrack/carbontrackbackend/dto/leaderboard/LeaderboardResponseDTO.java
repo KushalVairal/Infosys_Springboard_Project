@@ -1,3 +1,4 @@
+
 package com.carbontrack.carbontrackbackend.dto.leaderboard;
 
 import java.math.BigDecimal;
@@ -14,4 +15,5 @@ public record LeaderboardResponseDTO(
         BigDecimal myEmissionsKg,
         boolean isTopThree,
         List<LeaderboardEntryDTO> leaderboard
-) {}
+) {
+}

@@ -165,3 +165,120 @@
 .lb-rank-medal { display:block; width:31px; height:31px; object-fit:contain; }
 [data-theme="dark"] .lb-avatar img,
 [data-theme="dark"] .lb-rank-medal { filter:drop-shadow(0 3px 5px rgba(0,0,0,.4)); }
+
+
+/* Period selection, personal rank card, claim interaction and medal collection */
+.lb-period-tabs { display:flex; gap:7px; width:max-content; max-width:100%; padding:5px; margin:0 0 18px; border:1px solid var(--lb-border); border-radius:13px; background:var(--bg-surface,#fff); }
+.lb-period-tabs button { min-width:88px; padding:9px 15px; border:0; border-radius:9px; background:transparent; color:var(--lb-muted); font:inherit; font-size:.82rem; font-weight:800; cursor:pointer; transition:background .18s ease,color .18s ease,transform .18s ease; }
+.lb-period-tabs button:hover { color:var(--lb-forest); background:var(--lb-sage); }
+.lb-period-tabs button.active { color:#fff; background:var(--lb-forest); box-shadow:0 3px 9px rgba(23,77,53,.16); }
+.lb-period-days { color:var(--lb-muted); }
+.lb-my-rank-card { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:19px 21px; margin:0 0 25px; border:1px solid var(--lb-border); border-radius:16px; background:var(--bg-surface,#fff); box-shadow:var(--shadow-sm,0 3px 12px rgba(20,60,35,.04)); }
+.lb-my-rank-card.is-winner { border-color:#d9bd70; background:linear-gradient(115deg,var(--bg-surface,#fff),#fff7df); }
+.lb-my-rank-copy { min-width:0; }
+.lb-my-rank-copy .lb-eyebrow { margin-bottom:5px; }
+.lb-my-rank-copy h2 { margin:0 0 5px; color:var(--lb-forest); font-size:1.2rem; }
+.lb-my-rank-copy p { margin:0; color:var(--lb-muted); font-size:.82rem; line-height:1.5; }
+.lb-claim-btn,.lb-download-btn,.lb-share-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:11px; font:inherit; font-weight:800; cursor:pointer; transition:transform .18s ease,box-shadow .18s ease; }
+.lb-claim-btn { flex:0 0 auto; min-height:45px; padding:0 17px; color:#59430e; background:linear-gradient(135deg,#f8e7ae,#e6c15e); box-shadow:0 5px 14px rgba(174,132,35,.2); }
+.lb-claim-btn:hover,.lb-download-btn:hover,.lb-share-btn:hover { transform:translateY(-2px); }
+.lb-rank-lock { display:inline-flex; align-items:center; gap:7px; color:var(--lb-muted); font-size:.78rem; font-weight:750; white-space:nowrap; }
+.lb-collection { margin-top:28px; padding:19px; border:1px solid var(--lb-border); border-radius:16px; background:var(--bg-surface,#fff); }
+.lb-collection .lb-section-heading { margin-bottom:13px; }
+.lb-collection-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(205px,1fr)); gap:10px; }
+.lb-collection-item { width:100%; text-align:left; font:inherit; cursor:pointer; display:flex; align-items:center; gap:11px; min-width:0; padding:11px; border:1px solid var(--lb-border); border-radius:12px; background:var(--bg-subtle,#f8fbf8); }
+.lb-collection-item img { width:49px; height:49px; flex:0 0 49px; object-fit:contain; }
+.lb-collection-item div { display:flex; flex-direction:column; min-width:0; gap:3px; }
+.lb-collection-item strong { color:var(--lb-forest); font-size:.84rem; }
+.lb-collection-item small { color:var(--lb-muted); font-size:.7rem; }
+.lb-collection-empty { display:flex; align-items:center; gap:8px; margin:0; color:var(--lb-muted); font-size:.8rem; }
+.lb-collection-empty svg { color:var(--lb-green); flex:0 0 auto; }
+
+.lb-modal-backdrop { position:fixed; z-index:1000; inset:0; display:grid; place-items:center; overflow-y:auto; padding:22px; background:rgba(10,25,16,.68); backdrop-filter:blur(5px); animation:lb-fade-in .2s ease both; }
+.lb-achievement-modal { position:relative; isolation:isolate; width:min(100%,470px); overflow:hidden; padding:29px 27px 25px; border:1px solid rgba(255,255,255,.65); border-radius:23px; background:var(--bg-surface,#fff); box-shadow:0 24px 80px rgba(0,0,0,.3); text-align:center; animation:lb-modal-pop .35s cubic-bezier(.2,.8,.2,1) both; }
+.lb-modal-close { position:absolute; z-index:3; top:13px; right:13px; display:grid; place-items:center; width:35px; height:35px; border:1px solid var(--lb-border); border-radius:50%; background:var(--bg-surface,#fff); color:var(--lb-muted); cursor:pointer; }
+.lb-modal-kicker { display:inline-flex; align-items:center; gap:6px; color:var(--lb-green); font-size:.68rem; font-weight:900; letter-spacing:.14em; }
+.lb-modal-medal { position:relative; z-index:1; display:block; width:145px; height:145px; object-fit:contain; margin:13px auto 9px; filter:drop-shadow(0 9px 10px rgba(35,55,35,.2)); animation:lb-medal-bounce .8s .15s both; }
+.lb-achievement-modal h2 { position:relative; z-index:1; margin:0 0 5px; color:var(--lb-forest); font-size:1.48rem; }
+.lb-modal-name { position:relative; z-index:1; margin:0 0 5px; color:var(--lb-ink); font-size:1rem; font-weight:850; }
+.lb-modal-rank { position:relative; z-index:1; margin:0; color:var(--lb-muted); font-size:.83rem; }
+.lb-modal-rank strong { color:var(--lb-forest); }
+.lb-modal-emissions { position:relative; z-index:1; display:flex; flex-direction:column; gap:4px; margin:17px 0; padding:12px; border-radius:12px; background:var(--lb-sage); }
+.lb-modal-emissions span { color:var(--lb-muted); font-size:.7rem; }
+.lb-modal-emissions strong { color:var(--lb-forest); font-size:1.08rem; }
+.lb-modal-actions { position:relative; z-index:1; display:grid; grid-template-columns:1.35fr 1fr; gap:9px; }
+.lb-download-btn,.lb-share-btn { min-height:44px; padding:0 11px; font-size:.78rem; }
+.lb-download-btn { color:#fff; background:var(--lb-forest); }
+.lb-share-btn { border:1px solid var(--lb-border); color:var(--lb-forest); background:var(--bg-surface,#fff); }
+.lb-share-message { position:relative; z-index:1; margin:11px 0 0; color:var(--lb-green); font-size:.75rem; }
+.lb-confetti { position:absolute; z-index:0; inset:0; overflow:hidden; pointer-events:none; }
+.lb-confetti span { position:absolute; top:-15px; left:calc((var(--i) * 5.7%) + 2%); width:7px; height:12px; border-radius:2px; background:var(--confetti-color,#d9b34f); opacity:.75; transform:rotate(calc(var(--i) * 29deg)); animation:lb-confetti-fall 3.8s calc(var(--i) * -.17s) linear infinite; }
+.lb-confetti span:nth-child(3n) { background:#78a984; border-radius:50%; }
+.lb-confetti span:nth-child(3n + 1) { background:#c98a5b; }
+@keyframes lb-fade-in { from { opacity:0; } to { opacity:1; } }
+@keyframes lb-modal-pop { from { opacity:0; transform:translateY(18px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes lb-medal-bounce { 0% { opacity:0; transform:scale(.55) rotate(-14deg); } 70% { opacity:1; transform:scale(1.08) rotate(4deg); } 100% { transform:scale(1) rotate(0); } }
+@keyframes lb-confetti-fall { 0% { transform:translateY(-20px) rotate(0); } 100% { transform:translateY(510px) rotate(540deg); } }
+[data-theme="dark"] .lb-my-rank-card.is-winner { background:linear-gradient(115deg,var(--bg-surface),#39331e); border-color:#796633; }
+[data-theme="dark"] .lb-period-tabs { background:var(--bg-surface); }
+[data-theme="dark"] .lb-period-tabs button.active { color:#183b28; background:#a8d7b6; }
+[data-theme="dark"] .lb-modal-emissions { background:var(--lb-sage); }
+@media (max-width:600px) {
+  .lb-period-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; }
+  .lb-period-tabs button { min-width:0; padding:9px 7px; }
+  .lb-my-rank-card { align-items:flex-start; flex-direction:column; padding:16px; }
+  .lb-claim-btn { width:100%; }
+  .lb-collection { padding:15px; }
+  .lb-modal-backdrop { padding:12px; }
+  .lb-achievement-modal { padding:25px 17px 20px; }
+  .lb-modal-medal { width:125px; height:125px; }
+  .lb-modal-actions { grid-template-columns:1fr; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .lb-confetti span { animation:none; }
+  .lb-achievement-modal,.lb-modal-backdrop,.lb-modal-medal { animation:none; }
+}
+/* Separate celebration preview button beside the claim action */
+.lb-rank-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+.lb-celebrate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 45px;
+  padding: 0 16px;
+  border: 1px solid var(--lb-border);
+  border-radius: 11px;
+  color: var(--lb-forest);
+  background: var(--bg-surface, #fff);
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.lb-celebrate-btn:hover {
+  transform: translateY(-2px);
+  background: var(--lb-sage);
+  box-shadow: 0 5px 14px rgba(23,77,53,.12);
+}
+@media (max-width: 600px) {
+  .lb-rank-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .lb-rank-actions .lb-claim-btn,
+  .lb-rank-actions .lb-celebrate-btn {
+    width: 100%;
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+}
