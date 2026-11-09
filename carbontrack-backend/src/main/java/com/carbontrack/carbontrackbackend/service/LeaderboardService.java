@@ -2,220 +2,337 @@
 package com.carbontrack.carbontrackbackend.service;
 
 import com.carbontrack.carbontrackbackend.dto.leaderboard.*;
+import com.carbontrack.carbontrackbackend.entity.User;
 import com.carbontrack.carbontrackbackend.entity.UserBadge;
 import com.carbontrack.carbontrackbackend.repository.ActivityLogRepository;
 import com.carbontrack.carbontrackbackend.repository.UserBadgeRepository;
+import com.carbontrack.carbontrackbackend.repository.UserRepository;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.DayOfWeek;
+import java.time.YearMonth;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class LeaderboardService {
 
-    private static final int PERIOD_DAYS = 30;
     private static final int MAX_LEADERBOARD_SIZE = 50;
 
-    private static final List<String> CATEGORIES = List.of(
-            "TRANSPORT",
-            "ELECTRICITY",
-            "FOOD",
-            "SHOPPING"
-    );
+    private static final List<String> CATEGORIES =
+            List.of("TRANSPORT", "ELECTRICITY", "FOOD", "SHOPPING");
 
     private final ActivityLogRepository activityLogRepository;
     private final UserBadgeRepository userBadgeRepository;
+    private final UserRepository userRepository;
 
     public LeaderboardService(
             ActivityLogRepository activityLogRepository,
-            UserBadgeRepository userBadgeRepository) {
+            UserBadgeRepository userBadgeRepository,
+            UserRepository userRepository) {
 
         this.activityLogRepository = activityLogRepository;
         this.userBadgeRepository = userBadgeRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional(readOnly = true)
-    public LeaderboardResponseDTO getLeaderboard() {
+    public LeaderboardResponseDTO getLeaderboard(
+            String authenticatedName,
+            LeaderboardPeriod period) {
 
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusDays(PERIOD_DAYS - 1);
+        User currentUser = userRepository.findByEmail(authenticatedName)
+                .or(() -> userRepository.findByUsername(authenticatedName))
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Authenticated user was not found"
+                ));
 
-        // 1. Fetch all active users and their total emissions
-        List<LeaderboardUserAggregateDTO> allUsers =
-                activityLogRepository.findLeaderboardTotals(
-                        startDate, endDate);
+        return buildLeaderboard(currentUser.getId(), period);
+    }
 
-        if (allUsers == null || allUsers.isEmpty()) {
-            return new LeaderboardResponseDTO(
-                    PERIOD_DAYS,
-                    startDate,
-                    endDate,
-                    0,
-                    Collections.emptyList()
-            );
+    @Transactional(readOnly = true)
+    public LeaderboardResponseDTO buildLeaderboard(
+            Long currentUserId,
+            LeaderboardPeriod period) {
+
+        LocalDate today = LocalDate.now();
+
+        // Calculate reporting-period start date.
+        LocalDate startDate = switch (period) {
+            case DAILY -> today;
+            case WEEKLY -> today.with(DayOfWeek.MONDAY);
+            case MONTHLY -> YearMonth.from(today).atDay(1);
+        };
+
+        // Calculate the complete reporting-period end date.
+        LocalDate periodEndDate = switch (period) {
+            case DAILY -> today;
+            case WEEKLY -> startDate.plusDays(6);
+            case MONTHLY -> YearMonth.from(today).atEndOfMonth();
+        };
+
+        // Do not include future activity in the leaderboard.
+        LocalDate queryEndDate = today;
+
+        // Fetch participant emissions.
+        List<LeaderboardUserAggregateDTO> allTotals =
+                new ArrayList<>(
+                        activityLogRepository.findLeaderboardTotalsBetween(
+                                startDate,
+                                queryEndDate
+                        )
+                );
+
+        // Sort by emissions, then username for deterministic ranking.
+        allTotals.sort(
+                Comparator
+                        .comparing(LeaderboardUserAggregateDTO::totalCo2eKg)
+                        .thenComparing(
+                                LeaderboardUserAggregateDTO::username,
+                                String.CASE_INSENSITIVE_ORDER
+                        )
+        );
+
+        int totalParticipants = allTotals.size();
+
+        int myIndex = -1;
+
+        for (int i = 0; i < allTotals.size(); i++) {
+            if (Objects.equals(
+                    allTotals.get(i).userId(),
+                    currentUserId)) {
+
+                myIndex = i;
+                break;
+            }
         }
 
-        // 2. Sort users by lowest emissions
-        List<LeaderboardUserAggregateDTO> sortedUsers =
-                allUsers.stream()
-                        .sorted(
-                                Comparator.comparing(
-                                                LeaderboardUserAggregateDTO::totalCo2eKg)
-                                        .thenComparing(
-                                                LeaderboardUserAggregateDTO::username)
-                        )
-                        .toList();
+        Integer myRank = myIndex >= 0 ? myIndex + 1 : null;
 
-        int totalParticipants = sortedUsers.size();
+        BigDecimal myEmissions = myIndex >= 0
+                ? scale(allTotals.get(myIndex).totalCo2eKg())
+                : BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
 
-        // 3. Select top 50 users
-        List<LeaderboardUserAggregateDTO> topUsers =
-                sortedUsers.stream()
+        boolean isTopThree = myRank != null && myRank <= 3;
+
+        // Keep only the top 50 leaderboard entries.
+        List<LeaderboardUserAggregateDTO> topEntries =
+                allTotals.stream()
                         .limit(MAX_LEADERBOARD_SIZE)
                         .toList();
 
-        List<Long> allUserIds = sortedUsers.stream()
-                .map(LeaderboardUserAggregateDTO::userId)
-                .toList();
-
-        List<Long> topUserIds = topUsers.stream()
-                .map(LeaderboardUserAggregateDTO::userId)
-                .toList();
-
-        // 4. Fetch category totals for the complete active cohort
-        List<LeaderboardCategoryAggregateDTO> categoryTotals =
-                activityLogRepository.findLeaderboardCategoryTotals(
-                        allUserIds, startDate, endDate);
-
-        // 5. Calculate category averages
-        Map<String, BigDecimal> categorySums = new HashMap<>();
-
-        Map<Long, Map<String, BigDecimal>> userCategories =
-                new HashMap<>();
-
-        for (LeaderboardCategoryAggregateDTO category : categoryTotals) {
-
-            String name = category.category()
-                    .trim().toUpperCase(Locale.ROOT);
-
-            categorySums.merge(
-                    name,
-                    category.totalCo2eKg(),
-                    BigDecimal::add
+        // Return an empty leaderboard when there are no participants.
+        if (topEntries.isEmpty()) {
+            return new LeaderboardResponseDTO(
+                    period,
+                    periodDays(period, startDate, periodEndDate),
+                    startDate,
+                    periodEndDate,
+                    totalParticipants,
+                    myRank,
+                    myEmissions,
+                    isTopThree,
+                    List.of()
             );
-
-            userCategories
-                    .computeIfAbsent(
-                            category.userId(),
-                            id -> new HashMap<>())
-                    .put(name, category.totalCo2eKg());
         }
 
-        Map<String, BigDecimal> categoryAverages =
+        // Fetch category totals for all active participants.
+        List<Long> activeUserIds = allTotals.stream()
+                .map(LeaderboardUserAggregateDTO::userId)
+                .toList();
+
+        List<Long> topUserIds = topEntries.stream()
+                .map(LeaderboardUserAggregateDTO::userId)
+                .toList();
+
+        List<LeaderboardCategoryAggregateDTO> categoryRows =
+                activityLogRepository.findLeaderboardCategoryTotalsBetween(
+                        activeUserIds,
+                        startDate,
+                        queryEndDate
+                );
+
+        Map<Long, Map<String, BigDecimal>> categoryByUser =
+                new HashMap<>();
+
+        Map<String, BigDecimal> categoryCommunityTotals =
                 new HashMap<>();
 
         for (String category : CATEGORIES) {
-
-            BigDecimal sum = categorySums.getOrDefault(
-                    category, BigDecimal.ZERO);
-
-            BigDecimal average = sum.divide(
-                    BigDecimal.valueOf(totalParticipants),
-                    3,
-                    RoundingMode.HALF_UP
-            );
-
-            categoryAverages.put(category, average);
+            categoryCommunityTotals.put(category, BigDecimal.ZERO);
         }
 
-        // 6. Fetch badges for top 50 users
-        List<UserBadge> earnedBadges =
-                userBadgeRepository.findByUserIdsWithBadge(topUserIds);
+        for (LeaderboardCategoryAggregateDTO row : categoryRows) {
 
+            String category = normalizeCategory(row.category());
+
+            BigDecimal amount = scale(row.totalCo2eKg());
+
+            categoryByUser
+                    .computeIfAbsent(
+                            row.userId(),
+                            ignored -> new HashMap<>()
+                    )
+                    .put(category, amount);
+
+            categoryCommunityTotals.merge(
+                    category,
+                    amount,
+                    BigDecimal::add
+            );
+        }
+
+        // Fetch existing badges for top leaderboard participants.
         Map<Long, List<LeaderboardBadgeDTO>> badgesByUser =
-                earnedBadges.stream()
-                        .collect(Collectors.groupingBy(
-                                badge -> badge.getUser().getId(),
-                                Collectors.mapping(
-                                        badge -> new LeaderboardBadgeDTO(
-                                                badge.getBadge().getId(),
-                                                badge.getBadge().getName(),
-                                                badge.getBadge().getDescription(),
-                                                badge.getBadge().getIconUrl(),
-                                                badge.getAwardedAt()
-                                        ),
-                                        Collectors.toList()
-                                )
-                        ));
+                new HashMap<>();
 
-        // 7. Build leaderboard response
-        List<LeaderboardEntryDTO> entries =
+        for (UserBadge userBadge :
+                userBadgeRepository.findByUserIdsWithBadge(topUserIds)) {
+
+            badgesByUser
+                    .computeIfAbsent(
+                            userBadge.getUser().getId(),
+                            ignored -> new ArrayList<>()
+                    )
+                    .add(
+                            new LeaderboardBadgeDTO(
+                                    userBadge.getBadge().getId(),
+                                    userBadge.getBadge().getName(),
+                                    userBadge.getBadge().getDescription(),
+                                    userBadge.getBadge().getIconUrl(),
+                                    userBadge.getAwardedAt()
+                            )
+                    );
+        }
+
+        // Build leaderboard entries.
+        List<LeaderboardEntryDTO> leaderboard =
                 new ArrayList<>();
 
-        for (int i = 0; i < topUsers.size(); i++) {
+        for (int i = 0; i < topEntries.size(); i++) {
 
-            LeaderboardUserAggregateDTO user = topUsers.get(i);
+            LeaderboardUserAggregateDTO user = topEntries.get(i);
+
+            Map<String, BigDecimal> userCategories =
+                    categoryByUser.getOrDefault(
+                            user.userId(),
+                            Collections.emptyMap()
+                    );
 
             List<CategoryStrengthDTO> strengths =
                     new ArrayList<>();
 
-            List<String> habitTips =
-                    new ArrayList<>();
-
-            Map<String, BigDecimal> userCategoryMap =
-                    userCategories.getOrDefault(
-                            user.userId(), Collections.emptyMap());
-
             for (String category : CATEGORIES) {
 
-                BigDecimal userTotal = userCategoryMap.getOrDefault(
-                        category, BigDecimal.ZERO);
+                BigDecimal amount = userCategories.getOrDefault(
+                        category,
+                        BigDecimal.ZERO.setScale(
+                                3,
+                                RoundingMode.HALF_UP
+                        )
+                );
 
                 BigDecimal communityAverage =
-                        categoryAverages.get(category);
+                        totalParticipants == 0
+                                ? BigDecimal.ZERO
+                                : categoryCommunityTotals
+                                        .getOrDefault(
+                                                category,
+                                                BigDecimal.ZERO
+                                        )
+                                        .divide(
+                                                BigDecimal.valueOf(
+                                                        totalParticipants
+                                                ),
+                                                3,
+                                                RoundingMode.HALF_UP
+                                        );
 
                 boolean belowAverage =
-                        userTotal.compareTo(BigDecimal.ZERO) > 0
-                        && userTotal.compareTo(communityAverage) < 0;
+                        amount.compareTo(BigDecimal.ZERO) > 0
+                                && amount.compareTo(communityAverage) < 0;
 
-                strengths.add(new CategoryStrengthDTO(
-                        category,
-                        userTotal.setScale(3, RoundingMode.HALF_UP),
-                        belowAverage
-                ));
-
-                if (belowAverage) {
-                    habitTips.add(
-                            "Recorded below-average emissions in "
-                                    + category.toLowerCase(Locale.ROOT)
-                                    + " during the last 30 days."
-                    );
-                }
+                strengths.add(
+                        new CategoryStrengthDTO(
+                                category,
+                                amount,
+                                belowAverage
+                        )
+                );
             }
 
-            entries.add(new LeaderboardEntryDTO(
-                    i + 1,
-                    user.username(),
-                    user.totalCo2eKg().setScale(
-                            3, RoundingMode.HALF_UP),
-                    user.totalActivities(),
-                    badgesByUser.getOrDefault(
-                            user.userId(), Collections.emptyList()),
-                    strengths,
-                    habitTips
-            ));
+            List<String> tips = strengths.stream()
+                    .filter(CategoryStrengthDTO::belowCommunityAverage)
+                    .map(item ->
+                            "Recorded below-average emissions in "
+                                    + item.category().toLowerCase(Locale.ROOT)
+                                    + " during this reporting period."
+                    )
+                    .toList();
+
+            leaderboard.add(
+                    new LeaderboardEntryDTO(
+                            i + 1,
+                            user.username(),
+                            scale(user.totalCo2eKg()),
+                            user.totalActivities(),
+                            badgesByUser.getOrDefault(
+                                    user.userId(),
+                                    List.of()
+                            ),
+                            strengths,
+                            tips
+                    )
+            );
         }
 
+        // Return leaderboard with complete reporting-period dates.
         return new LeaderboardResponseDTO(
-                PERIOD_DAYS,
+                period,
+                periodDays(period, startDate, periodEndDate),
                 startDate,
-                endDate,
+                periodEndDate,
                 totalParticipants,
-                entries
+                myRank,
+                myEmissions,
+                isTopThree,
+                leaderboard
         );
+    }
+
+    private static Integer periodDays(
+            LeaderboardPeriod period,
+            LocalDate startDate,
+            LocalDate endDate) {
+
+        return switch (period) {
+            case DAILY -> 1;
+            case WEEKLY -> 7;
+            case MONTHLY ->
+                    (int) (endDate.toEpochDay()
+                            - startDate.toEpochDay() + 1);
+        };
+    }
+
+    private static BigDecimal scale(BigDecimal value) {
+
+        return (value == null ? BigDecimal.ZERO : value)
+                .setScale(3, RoundingMode.HALF_UP);
+    }
+
+    private static String normalizeCategory(String category) {
+
+        if (category == null) {
+            return "";
+        }
+
+        return category.trim().toUpperCase(Locale.ROOT);
     }
 }

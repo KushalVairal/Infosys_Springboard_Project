@@ -2,16 +2,10 @@ import { useEffect, useRef } from 'react';
 
 export default function Toast({ message, type = 'success', onClose }) {
   const closeRef = useRef(onClose);
-  useEffect(() => {
-    closeRef.current = onClose;
-  }, [onClose]);
+  closeRef.current = onClose;
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      if (typeof closeRef.current === 'function') {
-        closeRef.current();
-      }
-    }, 3000);
+    const t = setTimeout(() => closeRef.current(), 3000);
     return () => clearTimeout(t);
   }, [message]);
 

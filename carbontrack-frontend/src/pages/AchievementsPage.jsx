@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api, { getBadgeIconUrl } from '../api/client';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import '../styles/achievements.css';
 import {
   Award,
   Trophy,
@@ -118,6 +119,13 @@ export default function AchievementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterTab, setFilterTab] = useState('ALL'); // 'ALL' | 'EARNED' | 'CATALOG'
+  const [rewardPeriod, setRewardPeriod] = useState('MONTHLY');
+  const [leaderboard, setLeaderboard] = useState(null);
+  const [myRewards, setMyRewards] = useState([]);
+  const [rewardLoading, setRewardLoading] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [rewardError, setRewardError] = useState('');
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
 
   const loadBadges = useCallback(async () => {
     try {
@@ -131,6 +139,75 @@ export default function AchievementsPage() {
       setLoading(false);
     }
   }, []);
+
+    const loadRewards = useCallback(async () => {
+    try {
+      setRewardLoading(true);
+      setRewardError('');
+
+      const [leaderboardData, rewardData] = await Promise.all([
+        api.leaderboard.getLeaderboard(rewardPeriod),
+        api.achievements.getMyAchievements()
+      ]);
+
+      setLeaderboard(leaderboardData);
+      setMyRewards(Array.isArray(rewardData) ? rewardData : []);
+    } catch (err) {
+      setRewardError(
+        err.message || 'Unable to load leaderboard rewards.'
+      );
+    } finally {
+      setRewardLoading(false);
+    }
+  }, [rewardPeriod]);
+
+  useEffect(() => {
+    loadRewards();
+  }, [loadRewards]);
+
+  const myRank = leaderboard?.myRank;
+  const isEligible = myRank >= 1 && myRank <= 3;
+
+  const claimedForPeriod = myRewards.some(
+    (reward) =>
+      reward.leaderboardPeriod === rewardPeriod &&
+      reward.periodStartDate === leaderboard?.startDate
+  );
+
+  const claimReward = async () => {
+    if (!isEligible || claimedForPeriod || claiming) return;
+
+    try {
+      setClaiming(true);
+      setRewardError('');
+
+      await api.achievements.claim(rewardPeriod);
+
+      // Reload database records after successful claim.
+      await loadRewards();
+    } catch (err) {
+      setRewardError(
+        err.message || 'Unable to claim your reward.'
+      );
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const rewardDetails = {
+    GOLD_LEAF: {
+      title: 'Gold Leaf',
+      emoji: '🥇'
+    },
+    SILVER_LEAF: {
+      title: 'Silver Leaf',
+      emoji: '🥈'
+    },
+    BRONZE_LEAF: {
+      title: 'Bronze Leaf',
+      emoji: '🥉'
+    }
+  };
 
   useEffect(() => {
     loadBadges();
@@ -191,6 +268,210 @@ export default function AchievementsPage() {
           </Link>
         </div>
       </div>
+
+            {/* Leaderboard Rewards */}
+      <section className="leaderboard-rewards-section">
+        <div className="leaderboard-rewards-header">
+          <div>
+            <h2>Leaderboard Rewards</h2>
+            <p>
+              Earn Gold, Silver and Bronze Leaf rewards by reaching
+              the top three positions.
+            </p>
+          </div>
+
+          <select
+            value={rewardPeriod}
+            onChange={(e) => setRewardPeriod(e.target.value)}
+            className="reward-period-select"
+          >
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+          </select>
+        </div>
+
+        {rewardError && (
+          <div className="dashboard-alert alert-error" role="alert">
+            <AlertCircle size={18} />
+            <span>{rewardError}</span>
+            <button
+              type="button"
+              onClick={loadRewards}
+              className="btn btn-sm btn-ghost"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {rewardLoading ? (
+          <p>Loading leaderboard rewards...</p>
+        ) : (
+          <>
+            <div className="reward-current-status">
+              <div>
+                <span>Your current rank</span>
+                <h3>
+                  {myRank ? `#${myRank}` : 'Not ranked'}
+                </h3>
+              </div>
+
+              <div>
+                <span>Your emissions</span>
+                <h3>
+                  {Number(
+                    leaderboard?.myEmissionsKg || 0
+                  ).toFixed(3)} kg
+                </h3>
+              </div>
+
+              <div>
+                <span>Participants</span>
+                <h3>
+                  {leaderboard?.totalParticipants ?? 0}
+                </h3>
+              </div>
+            </div>
+
+            <div className="reward-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!isEligible || claimedForPeriod || claiming}
+                onClick={claimReward}
+              >
+                {claiming
+                  ? 'Claiming...'
+                  : claimedForPeriod
+                  ? 'Reward Claimed'
+                  : isEligible
+                  ? 'Claim Rewards'
+                  : 'Top 3 Required'}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setCelebrationOpen(true)}
+              >
+                <Sparkles size={16} />
+                Celebrate Progress
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Personal Reward Collection */}
+      <section className="personal-reward-collection">
+        <h2>My Reward Collection</h2>
+        <p>Your claimed leaderboard rewards, saved to your account.</p>
+
+        {myRewards.length === 0 ? (
+          <div className="empty-achievements-container">
+            <EmptyState
+              title="No Rewards Collected Yet"
+              description="Reach the top three in a leaderboard period and claim your first Leaf reward."
+              icon={<Trophy size={42} color="var(--forest-primary)" />}
+            />
+          </div>
+        ) : (
+          <div className="badges-grid">
+            {myRewards.map((reward) => {
+              const details = rewardDetails[reward.achievementType] || {
+                title: reward.achievementType,
+                emoji: '🏆'
+              };
+
+              return (
+                <div className="badge-card badge-card-earned" key={reward.id}>
+                  <div className="badge-card-top">
+                    <span style={{ fontSize: 42 }}>
+                      {details.emoji}
+                    </span>
+                    <span className="badge-status-pill earned">
+                      <CheckCircle2 size={13} />
+                      Claimed
+                    </span>
+                  </div>
+
+                  <div className="badge-card-body">
+                    <h3 className="badge-card-title">
+                      {details.title}
+                    </h3>
+                    <p className="badge-card-desc">
+                      {reward.leaderboardPeriod} leaderboard · Rank #{reward.rankAtClaim}
+                    </p>
+                    <p>
+                      {Number(reward.emissionsKgAtClaim).toFixed(3)} kg CO₂e
+                    </p>
+                  </div>
+
+                  <div className="badge-card-footer">
+                    <span>
+                      {reward.periodStartDate} – {reward.periodEndDate}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Celebration Popup - Does not call the claim API */}
+      {celebrationOpen && (
+        <div
+          className="reward-celebration-overlay"
+          onClick={() => setCelebrationOpen(false)}
+        >
+          <div
+            className="reward-celebration-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="reward-celebration-close"
+              onClick={() => setCelebrationOpen(false)}
+              aria-label="Close celebration"
+            >
+              ×
+            </button>
+
+            <div className="celebration-medal">🏆</div>
+
+            <h2>LEADING THE WAY!</h2>
+            <p>
+              Every sustainable action moves you forward.
+              Keep reducing your carbon footprint!
+            </p>
+
+            <div className="celebration-stats">
+              <span>Your Rank</span>
+              <strong>
+                {myRank ? `#${myRank}` : 'Keep progressing'}
+              </strong>
+
+              <span>Emissions</span>
+              <strong>
+                {Number(leaderboard?.myEmissionsKg || 0).toFixed(3)} kg CO₂e
+              </strong>
+
+              <span>Period</span>
+              <strong>{rewardPeriod}</strong>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setCelebrationOpen(false)}
+            >
+              Keep It Up!
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="dashboard-alert alert-error" role="alert">

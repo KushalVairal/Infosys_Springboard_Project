@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/client';
 import { CategoryBadge, EmissionBadge } from '../components/StatusBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
-import QuickLogCarousel from '../components/QuickLogCarousel';
 import {
   Plus,
   Search,
@@ -15,18 +14,14 @@ import {
   Zap,
   Utensils,
   ShoppingBag,
-  ArrowUpDown,
-  Calendar,
-  Sparkles,
-  ChevronDown,
-  Layers
+  ArrowUpDown
 } from 'lucide-react';
 
-// Exact activity factors matching backend Flyway migrations V10 & V14
-export const ACTIVITY_CATALOG = {
+// Exact activity factor data from backend V10 Flyway migration
+const ACTIVITY_CATALOG = {
   TRANSPORT: {
     label: 'Transport',
-    icon: Car,
+    icon: <Car size={18} />,
     unit: 'km',
     types: [
       { id: 'CAR_PETROL', label: 'Car (Petrol)', unit: 'km', factor: 0.18 },
@@ -41,8 +36,8 @@ export const ACTIVITY_CATALOG = {
     ]
   },
   ELECTRICITY: {
-    label: 'Electricity',
-    icon: Zap,
+    label: 'Electricity & Heating',
+    icon: <Zap size={18} />,
     unit: 'kWh',
     types: [
       { id: 'ELECTRICITY', label: 'Grid Electricity', unit: 'kWh', factor: 0.70 },
@@ -50,8 +45,8 @@ export const ACTIVITY_CATALOG = {
     ]
   },
   FOOD: {
-    label: 'Food',
-    icon: Utensils,
+    label: 'Diet & Food',
+    icon: <Utensils size={18} />,
     unit: 'serving',
     types: [
       { id: 'FOOD_VEGETARIAN', label: 'Vegetarian Meal', unit: 'serving', factor: 0.80 },
@@ -60,13 +55,12 @@ export const ACTIVITY_CATALOG = {
     ]
   },
   SHOPPING: {
-    label: 'Shopping',
-    icon: ShoppingBag,
+    label: 'Shopping & Waste',
+    icon: <ShoppingBag size={18} />,
     unit: 'item',
     types: [
       { id: 'CLOTHING', label: 'Clothing Item', unit: 'item', factor: 10.00 },
       { id: 'ELECTRONICS', label: 'Electronic Device', unit: 'item', factor: 50.00 },
-      { id: 'GROCERIES', label: 'Groceries (Spend INR)', unit: 'inr', factor: 0.002 },
       { id: 'WASTE', label: 'Household Waste', unit: 'kg', factor: 0.50 }
     ]
   }
@@ -85,7 +79,8 @@ export default function ActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Form State
+  // Modal / Form state
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formCategory, setFormCategory] = useState('TRANSPORT');
   const [formActivityType, setFormActivityType] = useState('CAR_PETROL');
@@ -95,16 +90,12 @@ export default function ActivitiesPage() {
   const [formError, setFormError] = useState('');
   const [lastCreated, setLastCreated] = useState(null);
 
-  // Modal State (for secondary modal trigger)
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
   // Filters & sorting
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('date-desc');
 
-  // Load activities from backend API
-  const fetchActivities = useCallback(async () => {
+  const fetchActivities = async () => {
     try {
       setLoading(true);
       const data = await api.activities.getMyActivities();
@@ -115,13 +106,13 @@ export default function ActivitiesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchActivities();
-  }, [fetchActivities]);
+  }, []);
 
-  // When category tab changes, automatically select the first valid activity type and unit
+  // When category changes in form, reset activity type and unit
   const handleCategoryChange = (catKey) => {
     setFormCategory(catKey);
     const firstType = ACTIVITY_CATALOG[catKey]?.types[0];
@@ -129,10 +120,8 @@ export default function ActivitiesPage() {
       setFormActivityType(firstType.id);
       setFormUnit(firstType.unit);
     }
-    setFormError('');
   };
 
-  // When activity type dropdown changes, automatically sync the correct unit
   const handleTypeChange = (typeId) => {
     setFormActivityType(typeId);
     const cat = ACTIVITY_CATALOG[formCategory];
@@ -140,40 +129,21 @@ export default function ActivitiesPage() {
     if (match) {
       setFormUnit(match.unit);
     }
-    setFormError('');
   };
 
-  // Real-time emission factor lookup
+  // Preview estimate calculation
   const currentFactorInfo = useMemo(() => {
     const cat = ACTIVITY_CATALOG[formCategory];
     const match = cat?.types.find((t) => t.id === formActivityType);
     return match || null;
   }, [formCategory, formActivityType]);
 
-  // Real-time preview calculation: quantity * emissionFactor
   const previewEstimate = useMemo(() => {
     const q = parseFloat(formQuantity);
     if (isNaN(q) || q <= 0 || !currentFactorInfo) return null;
     return (q * currentFactorInfo.factor).toFixed(3);
   }, [formQuantity, currentFactorInfo]);
 
-  // Prefill form from quick-log carousel
-  const handlePrefillFromCarousel = (activity) => {
-    setFormCategory(activity.category);
-    setFormActivityType(activity.activityType);
-    setFormQuantity(String(activity.quantity));
-    setFormUnit(activity.unit);
-    setFormDate(getTodayString());
-    setFormError('');
-
-    // Scroll to form smoothly
-    const formEl = document.getElementById('activity-logging-form-card');
-    if (formEl) {
-      formEl.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  // Activity submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -191,7 +161,7 @@ export default function ActivitiesPage() {
 
     const today = getTodayString();
     if (formDate > today) {
-      setFormError('Activity date cannot be in the future (backend validation requirement).');
+      setFormError('Activity date cannot be in the future.');
       return;
     }
 
@@ -206,11 +176,9 @@ export default function ActivitiesPage() {
       });
 
       setLastCreated(created);
-      setFormQuantity('');
       setIsModalOpen(false);
-
-      // Instantly insert into local state and refresh from backend
-      setActivities((prev) => [created, ...prev.filter((a) => a.id !== created.id)]);
+      setFormQuantity('');
+      // Refresh list
       await fetchActivities();
     } catch (err) {
       setFormError(err.message || 'Failed to record activity. Please check your inputs.');
@@ -254,7 +222,7 @@ export default function ActivitiesPage() {
         <div>
           <h1 className="page-heading">Activity Tracking & Ledger</h1>
           <p className="page-subheading">
-            Log your daily travel, power, diet, and shopping to compute verified CO₂e emissions.
+            Record everyday activities to calculate emissions using verified factors.
           </p>
         </div>
         <button
@@ -262,15 +230,16 @@ export default function ActivitiesPage() {
           className="btn btn-primary"
           onClick={() => {
             setFormError('');
+            setLastCreated(null);
             setIsModalOpen(true);
           }}
         >
           <Plus size={18} />
-          <span>Record Activity Modal</span>
+          <span>Record Activity</span>
         </button>
       </div>
 
-      {/* Global Success Notification */}
+      {/* Success Notification after creation */}
       {lastCreated && (
         <div className="activity-success-banner">
           <div className="success-banner-content">
@@ -287,7 +256,6 @@ export default function ActivitiesPage() {
             type="button"
             className="banner-dismiss-btn"
             onClick={() => setLastCreated(null)}
-            aria-label="Dismiss banner"
           >
             <X size={16} />
           </button>
@@ -301,185 +269,6 @@ export default function ActivitiesPage() {
         </div>
       )}
 
-      {/* Feature 12: Quick-Log Carousel for frequently logged activities */}
-      <QuickLogCarousel
-        onQuickLogged={(newAct) => {
-          setLastCreated(newAct);
-          setActivities((prev) => [newAct, ...prev.filter((a) => a.id !== newAct.id)]);
-          fetchActivities();
-        }}
-        onPrefillForm={handlePrefillFromCarousel}
-        className="mb-6"
-      />
-
-      {/* Tasks 3.1: Inline Activity Logging Interface Card */}
-      <div id="activity-logging-form-card" className="dashboard-card activity-logging-card">
-        <div className="card-header-clean">
-          <div>
-            <h2 className="card-heading">Log an Activity</h2>
-            <p className="card-subheading">
-              Select category, activity type, quantity, and date. Real-time preview is computed instantly.
-            </p>
-          </div>
-          <span className="live-preview-pill">
-            <Sparkles size={14} color="var(--forest-primary)" />
-            <span>Real-Time Estimation</span>
-          </span>
-        </div>
-
-        {formError && (
-          <div className="auth-alert alert-error mb-4" role="alert">
-            <AlertCircle size={18} />
-            <span>{formError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="activity-main-form">
-          {/* Requirement 2: Four Category Tabs */}
-          <div className="category-tabs-container">
-            <label className="form-label-bold">1. Select Sector Category</label>
-            <div className="category-tabs-row" role="tablist">
-              {Object.entries(ACTIVITY_CATALOG).map(([key, cat]) => {
-                const Icon = cat.icon;
-                const isSelected = formCategory === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={isSelected}
-                    className={`cat-tab-btn ${isSelected ? 'active' : ''}`}
-                    onClick={() => handleCategoryChange(key)}
-                    disabled={isSubmitting}
-                  >
-                    <Icon size={18} className="cat-tab-icon" />
-                    <span className="cat-tab-label">{cat.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Form Fields Grid */}
-          <div className="form-fields-grid">
-            {/* Requirement 3 & 4: Activity Type Dropdown based on Category */}
-            <div className="form-group">
-              <label htmlFor="main-activity-type" className="form-label">
-                2. Activity Type ({ACTIVITY_CATALOG[formCategory]?.label})
-              </label>
-              <select
-                id="main-activity-type"
-                className="form-select"
-                value={formActivityType}
-                onChange={(e) => handleTypeChange(e.target.value)}
-                disabled={isSubmitting}
-                required
-              >
-                {ACTIVITY_CATALOG[formCategory]?.types.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.label} — Factor: {type.factor} kg CO₂e/{type.unit}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Requirement 5 & 6: Quantity Input and Unit Display */}
-            <div className="form-group">
-              <label htmlFor="main-activity-quantity" className="form-label">
-                3. Quantity ({formUnit})
-              </label>
-              <div className="quantity-input-wrapper">
-                <input
-                  id="main-activity-quantity"
-                  type="number"
-                  step="any"
-                  min="0.001"
-                  placeholder={`e.g. ${formUnit === 'serving' ? '1' : formUnit === 'kWh' ? '10' : '15'}`}
-                  className="form-input"
-                  value={formQuantity}
-                  onChange={(e) => setFormQuantity(e.target.value)}
-                  disabled={isSubmitting}
-                  required
-                />
-                <span className="quantity-unit-badge">{formUnit}</span>
-              </div>
-            </div>
-
-            {/* Requirement 7: Date Selector */}
-            <div className="form-group">
-              <label htmlFor="main-activity-date" className="form-label">
-                4. Activity Date
-              </label>
-              <input
-                id="main-activity-date"
-                type="date"
-                max={getTodayString()}
-                className="form-input"
-                value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
-                disabled={isSubmitting}
-                required
-              />
-              <span className="field-hint">Date cannot be in the future.</span>
-            </div>
-          </div>
-
-          {/* Requirement 9: Real-Time CO₂e Preview Box */}
-          {previewEstimate !== null ? (
-            <div className="realtime-estimate-box">
-              <div className="estimate-formula-col">
-                <span className="formula-tag">Verified Calculation Formula</span>
-                <span className="formula-expression">
-                  <strong>{formQuantity}</strong> {formUnit} × <strong>{currentFactorInfo?.factor}</strong> kg CO₂e/{formUnit}
-                </span>
-              </div>
-              <div className="estimate-result-col">
-                <span className="estimate-label">Estimated Footprint:</span>
-                <span className="estimate-number">{previewEstimate} kg CO₂e</span>
-              </div>
-            </div>
-          ) : (
-            <div className="realtime-estimate-box pending">
-              <Info size={16} color="var(--text-muted)" />
-              <span>Enter a quantity to see the real-time CO₂e preview calculated using verified factors.</span>
-            </div>
-          )}
-
-          {/* Form Actions (Requirement 14: Loading & Submission States) */}
-          <div className="activity-form-actions">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                setFormQuantity('');
-                setFormDate(getTodayString());
-                setFormError('');
-              }}
-              disabled={isSubmitting}
-            >
-              Reset
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary btn-submit-activity"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <LoadingSpinner size="sm" message="" />
-                  <span>Saving to Database...</span>
-                </>
-              ) : (
-                <>
-                  <Plus size={18} />
-                  <span>Record Activity (POST /api/activities)</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-
       {/* Filter and Search Bar */}
       <div className="activity-controls-card">
         <div className="category-filter-pills">
@@ -490,20 +279,17 @@ export default function ActivitiesPage() {
           >
             All Sectors ({activities.length})
           </button>
-          {Object.entries(ACTIVITY_CATALOG).map(([key, cat]) => {
-            const Icon = cat.icon;
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`filter-pill ${filterCategory === key ? 'active' : ''}`}
-                onClick={() => setFilterCategory(key)}
-              >
-                <Icon size={14} className="pill-icon" />
-                <span>{cat.label}</span>
-              </button>
-            );
-          })}
+          {Object.entries(ACTIVITY_CATALOG).map(([key, cat]) => (
+            <button
+              key={key}
+              type="button"
+              className={`filter-pill ${filterCategory === key ? 'active' : ''}`}
+              onClick={() => setFilterCategory(key)}
+            >
+              <span className="pill-icon">{cat.icon}</span>
+              <span>{cat.label}</span>
+            </button>
+          ))}
         </div>
 
         <div className="filter-search-group">
@@ -511,7 +297,7 @@ export default function ActivitiesPage() {
             <Search size={16} className="search-icon" />
             <input
               type="text"
-              placeholder="Search by activity name (e.g. car, bus, diet)..."
+              placeholder="Search by type (e.g. car, electricity, bus)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -520,7 +306,6 @@ export default function ActivitiesPage() {
                 type="button"
                 className="clear-search-btn"
                 onClick={() => setSearchQuery('')}
-                aria-label="Clear search"
               >
                 <X size={14} />
               </button>
@@ -543,7 +328,7 @@ export default function ActivitiesPage() {
         </div>
       </div>
 
-      {/* Requirement 15: Activities History Ledger Table */}
+      {/* Activities Ledger Table */}
       <div className="dashboard-card activities-ledger-card">
         <div className="ledger-header">
           <div className="ledger-summary-left">
@@ -560,7 +345,7 @@ export default function ActivitiesPage() {
 
         {loading ? (
           <div className="table-loading-container">
-            <LoadingSpinner message="Fetching activity records from Spring Boot backend..." />
+            <LoadingSpinner message="Fetching activity records from database..." />
           </div>
         ) : filteredActivities.length > 0 ? (
           <div className="table-responsive">
@@ -601,16 +386,13 @@ export default function ActivitiesPage() {
             title={activities.length === 0 ? 'No activities recorded yet' : 'No matching activities'}
             description={
               activities.length === 0
-                ? 'Your footprint ledger is ready. Log your daily commute, power consumption, or meals using the form above.'
+                ? 'Your footprint ledger is ready. Log your daily commute, power consumption, or meals to see accurate calculations.'
                 : 'Try adjusting your category filter or search keywords to view other logged entries.'
             }
-            actionText={activities.length === 0 ? 'Log First Activity' : 'Clear Filters'}
+            actionText={activities.length === 0 ? 'Record First Activity' : 'Clear Filters'}
             onAction={
               activities.length === 0
-                ? () => {
-                    const formEl = document.getElementById('activity-logging-form-card');
-                    if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
-                  }
+                ? () => setIsModalOpen(true)
                 : () => {
                     setFilterCategory('ALL');
                     setSearchQuery('');
@@ -620,7 +402,7 @@ export default function ActivitiesPage() {
         )}
       </div>
 
-      {/* Modal Dialog Option for Recording Activity */}
+      {/* Record Activity Modal */}
       {isModalOpen && (
         <div className="modal-backdrop" onClick={() => !isSubmitting && setIsModalOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
@@ -631,7 +413,7 @@ export default function ActivitiesPage() {
                 </span>
                 <div>
                   <h2 className="modal-title">Record Activity</h2>
-                  <p className="modal-subtitle">Server-side database calculation via POST /api/activities</p>
+                  <p className="modal-subtitle">Emissions are computed with server-side database factors</p>
                 </div>
               </div>
               <button
@@ -639,7 +421,6 @@ export default function ActivitiesPage() {
                 className="modal-close-btn"
                 onClick={() => setIsModalOpen(false)}
                 disabled={isSubmitting}
-                aria-label="Close modal"
               >
                 <X size={20} />
               </button>
@@ -657,31 +438,28 @@ export default function ActivitiesPage() {
               <div className="form-group">
                 <label className="form-label">Sector Category</label>
                 <div className="category-selector-grid">
-                  {Object.entries(ACTIVITY_CATALOG).map(([key, cat]) => {
-                    const Icon = cat.icon;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        className={`cat-select-btn ${formCategory === key ? 'selected' : ''}`}
-                        onClick={() => handleCategoryChange(key)}
-                        disabled={isSubmitting}
-                      >
-                        <span className="cat-btn-icon"><Icon size={18} /></span>
-                        <span className="cat-btn-text">{cat.label}</span>
-                      </button>
-                    );
-                  })}
+                  {Object.entries(ACTIVITY_CATALOG).map(([key, cat]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`cat-select-btn ${formCategory === key ? 'selected' : ''}`}
+                      onClick={() => handleCategoryChange(key)}
+                      disabled={isSubmitting}
+                    >
+                      <span className="cat-btn-icon">{cat.icon}</span>
+                      <span className="cat-btn-text">{cat.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Activity Type Selector */}
               <div className="form-group">
-                <label htmlFor="modal-activity-type" className="form-label">
+                <label htmlFor="activity-type-select" className="form-label">
                   Activity Type
                 </label>
                 <select
-                  id="modal-activity-type"
+                  id="activity-type-select"
                   className="form-select"
                   value={formActivityType}
                   onChange={(e) => handleTypeChange(e.target.value)}
@@ -699,15 +477,15 @@ export default function ActivitiesPage() {
               {/* Quantity and Unit */}
               <div className="form-row-2col">
                 <div className="form-group">
-                  <label htmlFor="modal-activity-quantity" className="form-label">
+                  <label htmlFor="activity-quantity" className="form-label">
                     Quantity
                   </label>
                   <input
-                    id="modal-activity-quantity"
+                    id="activity-quantity"
                     type="number"
                     step="any"
                     min="0.001"
-                    placeholder="e.g. 15"
+                    placeholder="e.g. 15.5"
                     className="form-input"
                     value={formQuantity}
                     onChange={(e) => setFormQuantity(e.target.value)}
@@ -717,11 +495,11 @@ export default function ActivitiesPage() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="modal-activity-unit" className="form-label">
+                  <label htmlFor="activity-unit" className="form-label">
                     Unit
                   </label>
                   <input
-                    id="modal-activity-unit"
+                    id="activity-unit"
                     type="text"
                     className="form-input read-only-input"
                     value={formUnit}
@@ -733,11 +511,11 @@ export default function ActivitiesPage() {
 
               {/* Activity Date */}
               <div className="form-group">
-                <label htmlFor="modal-activity-date" className="form-label">
+                <label htmlFor="activity-date" className="form-label">
                   Activity Date
                 </label>
                 <input
-                  id="modal-activity-date"
+                  id="activity-date"
                   type="date"
                   max={getTodayString()}
                   className="form-input"
@@ -764,6 +542,13 @@ export default function ActivitiesPage() {
                   </div>
                 </div>
               )}
+
+              <div className="test-data-disclaimer">
+                <Info size={14} color="var(--text-muted)" />
+                <span>
+                  Using development test factors from Spring Boot database migration <code>V10</code>.
+                </span>
+              </div>
 
               <div className="modal-actions">
                 <button
