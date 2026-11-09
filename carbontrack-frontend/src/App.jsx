@@ -47,10 +47,8 @@ export default function App() {
             <Route path="/goals" element={<GoalsPage />} />
             <Route path="/benchmarks" element={<BenchmarkingPage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
-            <Route path="/recommendations" element={<Navigate to="/dashboard" replace />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/settings" element={<Navigate to="/profile" replace />} />
           </Route>
 
           {/* Fallback */}

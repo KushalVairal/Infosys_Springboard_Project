@@ -14,11 +14,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"
-        ]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -53,27 +49,16 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-
-      SPRING_FLYWAY_ENABLED: "true"
       SPRING_FLYWAY_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
       SPRING_FLYWAY_USER: ${MYSQL_USER}
       SPRING_FLYWAY_PASSWORD: ${MYSQL_PASSWORD}
-
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
-
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
   frontend:
     build:
@@ -83,9 +68,6 @@ services:
     restart: unless-stopped
     ports:
       - "5173:5173"
-    environment:
-      - BACKEND_URL=http://carbontrack-backend:8080
-      - VITE_BACKEND_PROXY_TARGET=http://carbontrack-backend:8080
     depends_on:
       - carbontrack-backend
 
