@@ -224,7 +224,6 @@ export default function QuickLogCarousel({
       if (onQuickLogged) {
         onQuickLogged(created);
       }
-
       // Auto dismiss success after 4s
       setTimeout(() => setSuccessItem(null), 4000);
     } catch (err) {
@@ -350,4 +349,3 @@ export default function QuickLogCarousel({
     </div>
   );
 }
-

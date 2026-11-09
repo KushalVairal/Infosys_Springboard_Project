@@ -352,6 +352,15 @@ export const api = {
       })
   },
 
+  // AI assistant
+  assistant: {
+    chat: (messages) =>
+      request('/api/assistant/chat', {
+        method: 'POST',
+        body: JSON.stringify({ messages })
+      })
+  },
+
   // Footprint Aggregation & Analytics endpoints (Task 2 & 3)
   analytics: {
     getDaily: (startDate, endDate) =>
@@ -378,7 +387,12 @@ export const api = {
   badges: {
     getMyBadges: () => request('/api/badges/me', { method: 'GET' })
   },
-    // Leaderboard Achievement Rewards
+  // Badge & Achievement Engine endpoints
+  badges: {
+    getMyBadges: () => request('/api/badges/me', { method: 'GET' })
+  },
+
+  // Leaderboard Achievement Rewards
   achievements: {
     getMyAchievements: () =>
       request('/api/achievements/me', { method: 'GET' }),
@@ -396,11 +410,32 @@ export const api = {
       request(`/api/leaderboard?period=${encodeURIComponent(period)}`, {
         method: 'GET'
       })
+  },
+
+  // Generic HTTP methods compatible with Axios-style callers
+  get: async (endpoint, options = {}) => {
+    const data = await request(endpoint, {
+      method: 'GET',
+      ...options
+    });
+    return { data };
+  },
+
+  post: async (endpoint, body, options = {}) => {
+    const isFormData =
+      typeof FormData !== 'undefined' && body instanceof FormData;
+
+    const data = await request(endpoint, {
+      method: 'POST',
+      body: isFormData
+        ? body
+        : (body !== undefined ? JSON.stringify(body) : undefined),
+      ...options
+    });
+
+    return { data };
   }
-
-
 };
 
 export const apiClient = api;
 export default api;
-

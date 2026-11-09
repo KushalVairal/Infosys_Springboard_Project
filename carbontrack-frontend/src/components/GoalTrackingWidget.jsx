@@ -49,7 +49,6 @@ function getUnifiedGoalStatus(goal, projection) {
       description: 'Goal period ended within target footprint!'
     };
   }
-
   // 2. Missed / Overdue / Exceeded
   if (goal.overdue === true || goal.status === 'OVERDUE' || goal.status === 'EXCEEDED') {
     return {
@@ -606,4 +605,3 @@ export default function GoalTrackingWidget({
     </div>
   );
 }
-
