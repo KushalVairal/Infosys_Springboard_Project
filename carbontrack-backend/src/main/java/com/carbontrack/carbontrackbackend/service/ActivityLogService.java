@@ -1,14 +1,15 @@
-
 package com.carbontrack.carbontrackbackend.service;
 
 import com.carbontrack.carbontrackbackend.dto.activity.ActivityLogRequestDTO;
 import com.carbontrack.carbontrackbackend.dto.activity.ActivityLogResponseDTO;
 import com.carbontrack.carbontrackbackend.entity.ActivityLog;
 import com.carbontrack.carbontrackbackend.entity.User;
+import com.carbontrack.carbontrackbackend.event.ActivityLoggedEvent;
 import com.carbontrack.carbontrackbackend.repository.ActivityLogRepository;
 import com.carbontrack.carbontrackbackend.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
-
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,10 +20,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-
-import com.carbontrack.carbontrackbackend.event.ActivityLoggedEvent;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 
 @Service
 public class ActivityLogService {
@@ -41,13 +38,13 @@ public class ActivityLogService {
             EmissionCalculationService emissionCalculationService,
             UserRepository userRepository,
             ApplicationEventPublisher eventPublisher) {
-
         this.activityLogRepository = activityLogRepository;
         this.emissionCalculationService = emissionCalculationService;
         this.userRepository = userRepository;
         this.eventPublisher = eventPublisher;
     }
 
+    // Constructor used in tests where event publisher is not needed
     public ActivityLogService(
             ActivityLogRepository activityLogRepository,
             EmissionCalculationService emissionCalculationService,
@@ -56,22 +53,15 @@ public class ActivityLogService {
     }
 
     @CacheEvict(
-            cacheNames = {
-                    "dailyFootprint",
-                    "weeklyFootprint",
-                    "monthlyFootprint"
-            },
+            cacheNames = {"dailyFootprint", "weeklyFootprint", "monthlyFootprint"},
             allEntries = true
     )
     @Transactional
-    public ActivityLogResponseDTO createActivity(
-            String email, ActivityLogRequestDTO request) {
-
+    public ActivityLogResponseDTO createActivity(String email, ActivityLogRequestDTO request) {
         User user = findUser(email);
 
         String category = request.getCategory()
                 .trim().toUpperCase(Locale.ROOT);
-
         if (!ALLOWED_CATEGORIES.contains(category)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -81,10 +71,8 @@ public class ActivityLogService {
 
         String activityType = request.getActivityType()
                 .trim().toUpperCase(Locale.ROOT);
-
         String unit = request.getUnit().trim();
         LocalDate logDate = request.getLogDate();
-
         if (logDate.isAfter(LocalDate.now())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -92,13 +80,8 @@ public class ActivityLogService {
             );
         }
 
-        BigDecimal emissions =
-                emissionCalculationService.calculateEmissions(
-                        activityType,
-                        unit,
-                        request.getQuantity(),
-                        logDate
-                );
+        BigDecimal emissions = emissionCalculationService.calculateEmissions(
+                activityType, unit, request.getQuantity(), logDate);
 
         ActivityLog activity = new ActivityLog();
         activity.setUser(user);
@@ -119,15 +102,67 @@ public class ActivityLogService {
                     saved.getCo2eKg()
             ));
         }
-
         return convertToDTO(saved);
     }
 
-    @Transactional(readOnly = true)
+    @CacheEvict(
+            cacheNames = {"dailyFootprint", "weeklyFootprint", "monthlyFootprint"},
+            allEntries = true
+    )
+    @Transactional
+    public ActivityLogResponseDTO updateActivity(String email, Long id, ActivityLogRequestDTO request) {
+        ActivityLog activity = findActivity(id);
+        // Ownership check
+        if (!activity.getUser().getEmail().equals(email)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to update this activity");
+        }
+        // Validate category
+        String category = request.getCategory().trim().toUpperCase(Locale.ROOT);
+        if (!ALLOWED_CATEGORIES.contains(category)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category must be TRANSPORT, ELECTRICITY, FOOD, or SHOPPING");
+        }
+        // Validate activity type and unit
+        String activityType = request.getActivityType().trim().toUpperCase(Locale.ROOT);
+        String unit = request.getUnit().trim();
+        LocalDate logDate = request.getLogDate();
+        if (logDate.isAfter(LocalDate.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Activity date cannot be in the future");
+        }
+        // Recalculate emissions
+        BigDecimal emissions = emissionCalculationService.calculateEmissions(
+                activityType, unit, request.getQuantity(), logDate);
+        // Update fields
+        activity.setCategory(category);
+        activity.setActivityType(activityType);
+        activity.setQuantity(request.getQuantity());
+        activity.setUnit(unit);
+        activity.setCo2eKg(emissions);
+        activity.setLogDate(logDate);
+
+        ActivityLog saved = activityLogRepository.save(activity);
+        return convertToDTO(saved);
+    }
+
+    @CacheEvict(
+            cacheNames = {"dailyFootprint", "weeklyFootprint", "monthlyFootprint"},
+            allEntries = true
+    )
+    @Transactional
+    public void deleteActivity(String email, Long id) {
+        ActivityLog activity = findActivity(id);
+        if (!activity.getUser().getEmail().equals(email)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to delete this activity");
+        }
+        activityLogRepository.delete(activity);
+    }
+
+    private ActivityLog findActivity(Long id) {
+        return activityLogRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity not found"));
+    }
+
     public List<ActivityLogResponseDTO> getMyActivities(String email) {
-
         User user = findUser(email);
-
         return activityLogRepository
                 .findByUserIdOrderByLogDateDesc(user.getId())
                 .stream()

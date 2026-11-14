@@ -22,7 +22,8 @@ public class LeaderboardController {
     @GetMapping
     public LeaderboardResponseDTO getLeaderboard(
             Authentication authentication,
-            @RequestParam(defaultValue = "MONTHLY") LeaderboardPeriod period) {
-        return leaderboardService.getLeaderboard(authentication.getName(), period);
+            @RequestParam(defaultValue = "MONTHLY") LeaderboardPeriod period,
+            @RequestParam(defaultValue = "OVERALL") String scope) {
+        return leaderboardService.getLeaderboard(authentication.getName(), period, scope);
     }
 }

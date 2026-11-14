@@ -73,13 +73,25 @@ public class GoalService {
         goal.setUser(user);
         goal.setTitle(request.getTitle().trim());
         goal.setDescription(trimOrNull(request.getDescription()));
-        goal.setBaselineCo2eKg(
-                request.getBaselineCo2eKg().setScale(3, RoundingMode.HALF_UP));
-        goal.setReductionPercentage(
-                request.getReductionPercentage().setScale(2, RoundingMode.HALF_UP));
-        goal.setTargetCo2eKg(calculateTarget(
-                request.getBaselineCo2eKg(),
-                request.getReductionPercentage()));
+        goal.setCategory(request.getCategory());
+        goal.setPeriod(request.getPeriod());
+
+        if (request.getBaselineCo2eKg() != null && request.getReductionPercentage() != null) {
+            BigDecimal baseline = request.getBaselineCo2eKg().setScale(3, RoundingMode.HALF_UP);
+            BigDecimal reduction = request.getReductionPercentage().setScale(2, RoundingMode.HALF_UP);
+            goal.setBaselineCo2eKg(baseline);
+            goal.setReductionPercentage(reduction);
+            goal.setTargetCo2eKg(calculateTarget(baseline, reduction));
+        } else if (request.getTargetCo2eKg() != null) {
+            BigDecimal target = request.getTargetCo2eKg().setScale(3, RoundingMode.HALF_UP);
+            goal.setTargetCo2eKg(target);
+            goal.setBaselineCo2eKg(target);
+            goal.setReductionPercentage(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        } else {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Either target limit or baseline and reduction percentage is required");
+        }
+
         goal.setStartDate(request.getStartDate());
         goal.setEndDate(request.getEndDate());
         goal.setStatus("ACTIVE");
@@ -105,13 +117,26 @@ public class GoalService {
 
         goal.setTitle(request.getTitle().trim());
         goal.setDescription(trimOrNull(request.getDescription()));
-        goal.setBaselineCo2eKg(
-                request.getBaselineCo2eKg().setScale(3, RoundingMode.HALF_UP));
-        goal.setReductionPercentage(
-                request.getReductionPercentage().setScale(2, RoundingMode.HALF_UP));
-        goal.setTargetCo2eKg(calculateTarget(
-                request.getBaselineCo2eKg(),
-                request.getReductionPercentage()));
+        if (request.getCategory() != null) {
+            goal.setCategory(request.getCategory());
+        }
+        if (request.getPeriod() != null) {
+            goal.setPeriod(request.getPeriod());
+        }
+
+        if (request.getBaselineCo2eKg() != null && request.getReductionPercentage() != null) {
+            BigDecimal baseline = request.getBaselineCo2eKg().setScale(3, RoundingMode.HALF_UP);
+            BigDecimal reduction = request.getReductionPercentage().setScale(2, RoundingMode.HALF_UP);
+            goal.setBaselineCo2eKg(baseline);
+            goal.setReductionPercentage(reduction);
+            goal.setTargetCo2eKg(calculateTarget(baseline, reduction));
+        } else if (request.getTargetCo2eKg() != null) {
+            BigDecimal target = request.getTargetCo2eKg().setScale(3, RoundingMode.HALF_UP);
+            goal.setTargetCo2eKg(target);
+            goal.setBaselineCo2eKg(target);
+            goal.setReductionPercentage(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        }
+
         goal.setStartDate(request.getStartDate());
         goal.setEndDate(request.getEndDate());
 
@@ -165,25 +190,95 @@ public class GoalService {
 
     @Transactional(readOnly = true)
     public GoalResponseDTO convertToDTO(Goal goal) {
-        BigDecimal current = activityLogRepository
-                .sumCo2eKgByUserIdAndLogDateBetween(
-                        goal.getUser().getId(),
-                        goal.getStartDate(),
-                        goal.getEndDate());
+        String category = goal.getCategory() != null ? goal.getCategory().trim().toUpperCase() : "ALL";
+        String period = goal.getPeriod() != null ? goal.getPeriod().trim().toUpperCase() : "CUSTOM";
+
+        BigDecimal current;
+        String includedCategories;
+
+        if ("ALL".equals(category) || "ALL_CATEGORIES".equals(category)) {
+            current = activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(
+                    goal.getUser().getId(),
+                    goal.getStartDate(),
+                    goal.getEndDate());
+            includedCategories = "All Categories (Transport, Energy, Food, Shopping, Waste, Water)";
+        } else if ("TRANSPORT".equals(category)) {
+            current = activityLogRepository.sumCo2eKgByUserIdAndCategoriesOrActivityTypesAndLogDateBetween(
+                    goal.getUser().getId(),
+                    List.of("TRANSPORT"),
+                    List.of("CAR_PETROL", "CAR_DIESEL", "CAR_GASOLINE", "CAR_ELECTRIC", "MOTORCYCLE",
+                            "MOTORCYCLE_PETROL", "MOTORBIKE", "BUS", "PUBLIC_TRANSPORT", "TRAIN", "FLIGHT",
+                            "AIR_TRAVEL", "FLIGHT_SHORT", "FLIGHT_LONG", "BICYCLE", "WALKING"),
+                    goal.getStartDate(),
+                    goal.getEndDate());
+            includedCategories = "Transport (Car, Bus, Train, Flight, Motorcycle, Cycling)";
+        } else if ("ENERGY".equals(category) || "ELECTRICITY".equals(category)) {
+            current = activityLogRepository.sumCo2eKgByUserIdAndCategoriesOrActivityTypesAndLogDateBetween(
+                    goal.getUser().getId(),
+                    List.of("ELECTRICITY", "ENERGY"),
+                    List.of("ELECTRICITY", "GRID_ELECTRICITY", "SOLAR", "LPG", "GAS", "HEATING"),
+                    goal.getStartDate(),
+                    goal.getEndDate());
+            includedCategories = "Energy (Electricity, Solar, LPG, Gas, Heating)";
+        } else if ("FOOD".equals(category)) {
+            current = activityLogRepository.sumCo2eKgByUserIdAndCategoriesOrActivityTypesAndLogDateBetween(
+                    goal.getUser().getId(),
+                    List.of("FOOD"),
+                    List.of("MEAT", "BEEF", "FOOD_BEEF", "FOOD_NON_VEGETARIAN", "FOOD_VEGETARIAN",
+                            "MEAL_VEGAN", "MEAL_VEGETARIAN", "MEAL_CHICKEN", "MEAL_BEEF"),
+                    goal.getStartDate(),
+                    goal.getEndDate());
+            includedCategories = "Food (Vegetarian, Non-Veg, Beef, Vegan Meals)";
+        } else if ("SHOPPING".equals(category)) {
+            current = activityLogRepository.sumCo2eKgByUserIdAndCategoriesOrActivityTypesAndLogDateBetween(
+                    goal.getUser().getId(),
+                    List.of("SHOPPING"),
+                    List.of("SHOPPING", "CLOTHING", "ELECTRONICS", "GROCERIES"),
+                    goal.getStartDate(),
+                    goal.getEndDate());
+            includedCategories = "Shopping (Clothing, Electronics, Groceries)";
+        } else if ("WASTE".equals(category)) {
+            current = activityLogRepository.sumCo2eKgByUserIdAndCategoriesOrActivityTypesAndLogDateBetween(
+                    goal.getUser().getId(),
+                    List.of("WASTE"),
+                    List.of("WASTE"),
+                    goal.getStartDate(),
+                    goal.getEndDate());
+            includedCategories = "Waste & Recycling";
+        } else if ("WATER".equals(category)) {
+            current = activityLogRepository.sumCo2eKgByUserIdAndCategoriesOrActivityTypesAndLogDateBetween(
+                    goal.getUser().getId(),
+                    List.of("WATER"),
+                    List.of("WATER"),
+                    goal.getStartDate(),
+                    goal.getEndDate());
+            includedCategories = "Water Consumption";
+        } else {
+            current = activityLogRepository.sumCo2eKgByUserIdAndLogDateBetween(
+                    goal.getUser().getId(),
+                    goal.getStartDate(),
+                    goal.getEndDate());
+            includedCategories = category;
+        }
 
         if (current == null) {
             current = BigDecimal.ZERO;
         }
 
         BigDecimal currentCo2eKg = current.setScale(3, RoundingMode.HALF_UP);
-        BigDecimal target = goal.getTargetCo2eKg();
+        BigDecimal target = goal.getTargetCo2eKg() != null ? goal.getTargetCo2eKg().setScale(3, RoundingMode.HALF_UP) : BigDecimal.ZERO;
         BigDecimal baseline = goal.getBaselineCo2eKg();
+        BigDecimal remainingAllowanceKg = target.subtract(currentCo2eKg).setScale(3, RoundingMode.HALF_UP);
+
+        Double percentageConsumed = 0.0;
+        if (target.compareTo(BigDecimal.ZERO) > 0) {
+            percentageConsumed = currentCo2eKg.divide(target, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100)).doubleValue();
+            percentageConsumed = Math.round(percentageConsumed * 10.0) / 10.0;
+        }
 
         double progressPct = 0.0;
-
-        if (baseline != null && target != null
-                && baseline.compareTo(target) > 0) {
-
+        if (baseline != null && target.compareTo(BigDecimal.ZERO) > 0 && baseline.compareTo(target) > 0) {
             BigDecimal reductionAchieved = baseline.subtract(currentCo2eKg);
             BigDecimal reductionNeeded = baseline.subtract(target);
 
@@ -194,12 +289,15 @@ public class GoalService {
 
             progressPct = Math.max(0.0, Math.min(100.0, progressPct));
             progressPct = Math.round(progressPct * 10.0) / 10.0;
+        } else if (target.compareTo(BigDecimal.ZERO) > 0) {
+            progressPct = Math.max(0.0, Math.min(100.0, 100.0 - percentageConsumed));
+            progressPct = Math.round(progressPct * 10.0) / 10.0;
         }
 
         LocalDate today = LocalDate.now();
         boolean cancelled = "CANCELLED".equalsIgnoreCase(goal.getStatus());
         boolean pastEndDate = today.isAfter(goal.getEndDate());
-        boolean withinBudget = target != null
+        boolean withinBudget = target.compareTo(BigDecimal.ZERO) > 0
                 && currentCo2eKg.compareTo(target) <= 0;
 
         String dynamicStatus;
@@ -224,16 +322,22 @@ public class GoalService {
                 goal.getId(),
                 goal.getTitle(),
                 goal.getDescription(),
+                category,
+                period,
                 baseline,
                 goal.getReductionPercentage(),
                 target,
                 currentCo2eKg,
+                remainingAllowanceKg,
+                percentageConsumed,
                 progressPct,
+                withinBudget,
                 goal.getStartDate(),
                 goal.getEndDate(),
                 dynamicStatus,
                 completed,
                 overdue,
+                includedCategories,
                 goal.getCreatedAt());
     }
 

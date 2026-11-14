@@ -55,6 +55,9 @@ public class User {
     @Column(name = "profile_image_url", length = 2048)
     private String profileImageUrl;
 
+    @Column(name = "avatar_seed", length = 100)
+    private String avatarSeed;
+
 
     public User() {
     }
@@ -158,6 +161,14 @@ public class User {
 
     public void setProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public String getAvatarSeed() {
+        return avatarSeed;
+    }
+
+    public void setAvatarSeed(String avatarSeed) {
+        this.avatarSeed = avatarSeed;
     }
 
 }

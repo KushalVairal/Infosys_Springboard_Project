@@ -91,6 +91,12 @@ public class UserProfileService {
             );
         }
 
+        if (request.getAvatarSeed() != null) {
+            user.setAvatarSeed(
+                    normalizeOptional(request.getAvatarSeed())
+            );
+        }
+
         User savedUser = userRepository.save(user);
 
         return convertToDTO(savedUser);
@@ -227,6 +233,8 @@ public class UserProfileService {
     }
 
     private UserProfileResponseDTO convertToDTO(User user) {
+        Long orgId = user.getOrganisation() != null ? user.getOrganisation().getId() : null;
+        String orgName = user.getOrganisation() != null ? user.getOrganisation().getName() : null;
         return new UserProfileResponseDTO(
                 user.getId(),
                 user.getUsername(),
@@ -239,7 +247,10 @@ public class UserProfileService {
                 user.getPreferredUnit(),
                 Boolean.TRUE.equals(user.getGoalVisibility()),
                 user.getCreatedAt(),
-                user.getUpdatedAt()
+                user.getUpdatedAt(),
+                orgId,
+                orgName,
+                user.getAvatarSeed()
         );
     }
 }

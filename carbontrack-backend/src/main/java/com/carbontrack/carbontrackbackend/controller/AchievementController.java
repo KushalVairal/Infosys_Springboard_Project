@@ -31,11 +31,13 @@ public class AchievementController {
     @ResponseStatus(HttpStatus.CREATED)
     public AchievementResponseDTO claimAchievement(
             @RequestParam LeaderboardPeriod period,
+            @RequestParam(defaultValue = "OVERALL") String scope,
             Authentication authentication
     ) {
         return achievementService.claimAchievement(
                 authentication.getName(),
-                period
+                period,
+                scope
         );
     }
 }

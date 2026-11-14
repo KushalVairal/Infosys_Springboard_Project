@@ -26,7 +26,10 @@ public class GroqChatService {
 
     private static final Logger logger = LoggerFactory.getLogger(GroqChatService.class);
     private static final String SYSTEM_MESSAGE =
-            "You are a helpful, general-purpose AI assistant. Be clear, accurate, and concise.";
+            "You are CarbonTrack AI, an expert, encouraging sustainability advisor. " +
+            "You guide users in analyzing their verified carbon footprint, understanding recommendations, comparing low-emission alternatives, and setting achievable category goals. " +
+            "Be clear, actionable, and grounded in verified data. Never fabricate data or assume activity that was not logged. " +
+            "Clearly distinguish measured past emissions from estimated potential reductions.";
 
     private final RestClient restClient;
     private final String apiKey;
@@ -43,6 +46,10 @@ public class GroqChatService {
     }
 
     public ChatResponseDTO chat(ChatRequestDTO request) {
+        return chat(request, null);
+    }
+
+    public ChatResponseDTO chat(ChatRequestDTO request, String systemContext) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -67,8 +74,16 @@ public class GroqChatService {
             );
         }
 
+        StringBuilder fullSystemPrompt = new StringBuilder(SYSTEM_MESSAGE);
+        if (systemContext != null && !systemContext.isBlank()) {
+            fullSystemPrompt.append("\n\n").append(systemContext);
+        }
+        if (request.context() != null && !request.context().isBlank()) {
+            fullSystemPrompt.append("\n\nACTIVE TOPIC CONTEXT:\n").append(request.context());
+        }
+
         List<Map<String, String>> apiMessages = new ArrayList<>();
-        apiMessages.add(Map.of("role", "system", "content", SYSTEM_MESSAGE));
+        apiMessages.add(Map.of("role", "system", "content", fullSystemPrompt.toString()));
         messages.forEach(message -> apiMessages.add(Map.of(
                 "role", message.role().toLowerCase(Locale.ROOT),
                 "content", message.content()

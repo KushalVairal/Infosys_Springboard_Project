@@ -4,8 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../api/client';
 import { LeafIcon } from '../components/NatureIcons';
-import { User, Mail, Lock, AlertCircle, ArrowRight, CheckCircle2, Sun, Moon } from 'lucide-react';
+import { User, Mail, AlertCircle, ArrowRight, CheckCircle2, Sun, Moon } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PasswordInput from '../components/PasswordInput';
+import FallingLeaves from '../components/animations/FallingLeaves';
+import '../styles/auth.css';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -72,7 +75,6 @@ export default function RegisterPage() {
     setFieldErrors({});
 
     try {
-      // 1. Register with backend
       await api.auth.register({
         username: formData.username.trim(),
         email: formData.email.trim(),
@@ -81,7 +83,6 @@ export default function RegisterPage() {
 
       setSuccessMsg('Account created successfully! Signing you in...');
 
-      // 2. Automatically log in to obtain JWT
       try {
         const loginRes = await api.auth.login({
           email: formData.email.trim(),
@@ -97,7 +98,6 @@ export default function RegisterPage() {
           return;
         }
       } catch {
-        // Fallback to manual login
         setTimeout(() => {
           navigate('/login', {
             state: { message: 'Account created! Please log in with your credentials.' }
@@ -116,7 +116,19 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="auth-page-container">
+    <div className="auth-page-container auth-nature-background auth-register-page">
+      {/* Subtle falling leaves drifting gently in background */}
+      <FallingLeaves />
+
+      <div className="auth-nature-decor" aria-hidden="true">
+        <span className="auth-leaf auth-leaf-one" />
+        <span className="auth-leaf auth-leaf-two" />
+        <span className="auth-leaf auth-leaf-three" />
+        <span className="auth-leaf auth-leaf-four" />
+        <span className="auth-wave auth-wave-back" />
+        <span className="auth-wave auth-wave-front" />
+      </div>
+
       <div className="auth-theme-toggle-wrapper">
         <button
           type="button"
@@ -159,9 +171,7 @@ export default function RegisterPage() {
           <div className="form-group">
             <label htmlFor="username">Username</label>
             <div className={`input-with-icon ${fieldErrors.username ? 'has-error' : ''}`}>
-              <span className="input-icon">
-                <User size={18} />
-              </span>
+              <span className="input-icon"><User size={18} /></span>
               <input
                 id="username"
                 name="username"
@@ -174,18 +184,14 @@ export default function RegisterPage() {
                 required
               />
             </div>
-            {fieldErrors.username && (
-              <span className="field-error-message">{fieldErrors.username}</span>
-            )}
+            {fieldErrors.username && <span className="field-error-message">{fieldErrors.username}</span>}
             <span className="field-hint">3 to 50 characters</span>
           </div>
 
           <div className="form-group">
             <label htmlFor="email">Email Address</label>
             <div className={`input-with-icon ${fieldErrors.email ? 'has-error' : ''}`}>
-              <span className="input-icon">
-                <Mail size={18} />
-              </span>
+              <span className="input-icon"><Mail size={18} /></span>
               <input
                 id="email"
                 name="email"
@@ -198,70 +204,47 @@ export default function RegisterPage() {
                 required
               />
             </div>
-            {fieldErrors.email && (
-              <span className="field-error-message">{fieldErrors.email}</span>
-            )}
+            {fieldErrors.email && <span className="field-error-message">{fieldErrors.email}</span>}
           </div>
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <div className={`input-with-icon ${fieldErrors.password ? 'has-error' : ''}`}>
-              <span className="input-icon">
-                <Lock size={18} />
-              </span>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                placeholder="At least 8 characters"
-                value={formData.password}
-                onChange={handleChange}
-                disabled={isSubmitting}
-                required
-              />
-            </div>
-            {fieldErrors.password && (
-              <span className="field-error-message">{fieldErrors.password}</span>
-            )}
+            <PasswordInput
+              id="password"
+              name="password"
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+              value={formData.password}
+              onChange={handleChange}
+              disabled={isSubmitting}
+              hasError={Boolean(fieldErrors.password)}
+              required
+            />
+            {fieldErrors.password && <span className="field-error-message">{fieldErrors.password}</span>}
             <span className="field-hint">8 to 72 characters</span>
           </div>
 
           <div className="form-group">
             <label htmlFor="confirmPassword">Confirm Password</label>
-            <div className={`input-with-icon ${fieldErrors.confirmPassword ? 'has-error' : ''}`}>
-              <span className="input-icon">
-                <Lock size={18} />
-              </span>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                placeholder="Re-enter your password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                disabled={isSubmitting}
-                required
-              />
-            </div>
-            {fieldErrors.confirmPassword && (
-              <span className="field-error-message">{fieldErrors.confirmPassword}</span>
-            )}
+            <PasswordInput
+              id="confirmPassword"
+              name="confirmPassword"
+              autoComplete="new-password"
+              placeholder="Re-enter your password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              disabled={isSubmitting}
+              hasError={Boolean(fieldErrors.confirmPassword)}
+              required
+            />
+            {fieldErrors.confirmPassword && <span className="field-error-message">{fieldErrors.confirmPassword}</span>}
           </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary btn-block btn-lg"
-            disabled={isSubmitting}
-          >
+          <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={isSubmitting}>
             {isSubmitting ? (
               <LoadingSpinner size="sm" message="" />
             ) : (
-              <>
-                <span>Create CarbonTrack Account</span>
-                <ArrowRight size={18} />
-              </>
+              <><span>Create CarbonTrack Account</span><ArrowRight size={18} /></>
             )}
           </button>
         </form>
@@ -269,9 +252,7 @@ export default function RegisterPage() {
         <div className="auth-card-footer">
           <p>
             Already have an account?{' '}
-            <Link to="/login" className="auth-link-primary">
-              Sign in
-            </Link>
+            <Link to="/login" className="auth-link-primary">Sign in</Link>
           </p>
         </div>
       </div>

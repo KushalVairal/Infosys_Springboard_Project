@@ -39,7 +39,7 @@ class GroqChatServiceTest {
                           "messages": [
                             {
                               "role": "system",
-                              "content": "You are a helpful, general-purpose AI assistant. Be clear, accurate, and concise."
+                              "content": "You are CarbonTrack AI, an expert, encouraging sustainability advisor. You guide users in analyzing their verified carbon footprint, understanding recommendations, comparing low-emission alternatives, and setting achievable category goals. Be clear, actionable, and grounded in verified data. Never fabricate data or assume activity that was not logged. Clearly distinguish measured past emissions from estimated potential reductions."
                             },
                             {"role": "user", "content": "Hello"}
                           ],

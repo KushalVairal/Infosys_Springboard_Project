@@ -31,6 +31,13 @@ public class UpdateProfileRequestDTO {
     )
     private String profileImageUrl;
 
+    @Size(max = 100, message = "Avatar seed is too long")
+    @Pattern(
+            regexp = "^$|^[a-zA-Z0-9_.-]{1,100}$",
+            message = "Avatar seed can only contain alphanumeric characters, underscores, dots, and dashes"
+    )
+    private String avatarSeed;
+
     @NotBlank(message = "Preferred unit is required")
     @Pattern(
             regexp = "KG_CO2E|TONNES_CO2E",
@@ -58,6 +65,9 @@ public class UpdateProfileRequestDTO {
     public void setProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }
+
+    public String getAvatarSeed() { return avatarSeed; }
+    public void setAvatarSeed(String avatarSeed) { this.avatarSeed = avatarSeed; }
 
     public String getPreferredUnit() { return preferredUnit; }
     public void setPreferredUnit(String preferredUnit) {

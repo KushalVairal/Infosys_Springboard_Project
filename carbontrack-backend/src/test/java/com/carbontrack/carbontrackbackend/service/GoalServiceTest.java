@@ -325,4 +325,63 @@ class GoalServiceTest {
 
         verify(goalRepository, never()).save(any(Goal.class));
     }
+
+    @Test
+    void shouldCreateCategorySpecificGoalAndFilterActivitiesStrictly() {
+        Goal goal = new Goal();
+        ReflectionTestUtils.setField(goal, "id", 10L);
+        goal.setUser(user);
+        goal.setTitle("Weekly Transport Cap");
+        goal.setCategory("TRANSPORT");
+        goal.setPeriod("WEEKLY");
+        goal.setTargetCo2eKg(new BigDecimal("40.000"));
+        goal.setBaselineCo2eKg(new BigDecimal("50.000"));
+        goal.setReductionPercentage(new BigDecimal("20.00"));
+        goal.setStartDate(LocalDate.now());
+        goal.setEndDate(LocalDate.now().plusDays(7));
+        goal.setStatus("ACTIVE");
+
+        when(activityLogRepository.sumCo2eKgByUserIdAndCategoriesOrActivityTypesAndLogDateBetween(
+                eq(101L), any(), any(), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(new BigDecimal("25.000"));
+
+        GoalResponseDTO response = goalService.convertToDTO(goal);
+
+        assertEquals("TRANSPORT", response.getCategory());
+        assertEquals("WEEKLY", response.getPeriod());
+        assertEquals(new BigDecimal("25.000"), response.getCurrentCo2eKg());
+        assertEquals(new BigDecimal("15.000"), response.getRemainingAllowanceKg());
+        assertEquals(62.5, response.getPercentageConsumed());
+        assertTrue(response.isWithinLimit());
+        assertNotNull(response.getIncludedCategories());
+        assertTrue(response.getIncludedCategories().contains("Transport"));
+    }
+
+    @Test
+    void shouldSupportDirectTargetWithoutReductionPercentage() {
+        when(userRepository.findByEmail("target@example.com"))
+                .thenReturn(Optional.of(user));
+
+        when(goalRepository.save(any(Goal.class))).thenAnswer(invocation -> {
+            Goal goal = invocation.getArgument(0);
+            ReflectionTestUtils.setField(goal, "id", 11L);
+            return goal;
+        });
+
+        CreateGoalRequestDTO request = new CreateGoalRequestDTO();
+        request.setTitle("Direct 50kg Transport Limit");
+        request.setCategory("TRANSPORT");
+        request.setPeriod("MONTHLY");
+        request.setTargetCo2eKg(new BigDecimal("50.000"));
+        request.setStartDate(LocalDate.now());
+        request.setEndDate(LocalDate.now().plusMonths(1));
+
+        GoalResponseDTO response = goalService.createGoal("target@example.com", request);
+
+        assertNotNull(response);
+        assertEquals("TRANSPORT", response.getCategory());
+        assertEquals("MONTHLY", response.getPeriod());
+        assertEquals(new BigDecimal("50.000"), response.getTargetCo2eKg());
+        verify(goalRepository).save(any(Goal.class));
+    }
 }

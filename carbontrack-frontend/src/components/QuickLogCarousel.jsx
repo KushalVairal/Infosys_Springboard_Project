@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { useEmissionFactors } from '../hooks/useEmissionFactors';
+import { UNIT_MULTIPLIER } from '../data/categories';
 import api from '../api/client';
 import { CategoryBadge } from './StatusBadge';
 import {
@@ -179,7 +181,7 @@ export default function QuickLogCarousel({
   onPrefillForm = null,
   className = ''
 }) {
-  const [currentPage, setCurrentPage] = useState(0);
+  const { factorsMap, loading: factorsLoading, error: factorsError } = useEmissionFactors();
   const [loggingId, setLoggingId] = useState(null);
   const [successItem, setSuccessItem] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -271,7 +273,13 @@ export default function QuickLogCarousel({
         </div>
       </div>
 
-      {/* Notification Banner */}
+        {/* Loading indicator for emission factors */}
+        {factorsLoading && (
+          <div className="quick-log-loading">
+            Loading emission factors…
+          </div>
+        )}
+
       {successItem && (
         <div className="quick-log-notification success">
           <CheckCircle2 size={16} />
@@ -299,7 +307,15 @@ export default function QuickLogCarousel({
               <div className="card-top-row">
                 <CategoryBadge category={act.category} />
                 <span className="co2-pill">
-                  {act.estimatedCo2e.toFixed(2)} kg CO₂e
+                  {(() => {
+                    const f = factorsMap[act.activityType];
+                    if (!f) {
+                      return '—'; // unavailable factor
+                    }
+                    const factor = f.factor;
+                    const mult = UNIT_MULTIPLIER[act.unit] ?? 1;
+                    return (factor * act.quantity * mult).toFixed(2);
+                  })()} kg CO₂e
                 </span>
               </div>
 

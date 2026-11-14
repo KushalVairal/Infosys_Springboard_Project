@@ -40,25 +40,34 @@ public class BadgeService {
     private final ActivityLogRepository activityLogRepository;
     private final GoalRepository goalRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public BadgeService(
             BadgeRepository badgeRepository,
             UserBadgeRepository userBadgeRepository,
             ActivityLogRepository activityLogRepository,
             GoalRepository goalRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            NotificationService notificationService) {
         this.badgeRepository = badgeRepository;
         this.userBadgeRepository = userBadgeRepository;
         this.activityLogRepository = activityLogRepository;
         this.goalRepository = goalRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<UserBadgeResponseDTO> getMyBadges(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "User not found"));
+
+        try {
+            evaluateBadges(user.getId());
+        } catch (Exception ex) {
+            log.warn("Badge evaluation error during getMyBadges: {}", ex.getMessage());
+        }
 
         List<UserBadge> userBadges = userBadgeRepository.findByUserIdWithBadge(user.getId());
 
@@ -238,6 +247,19 @@ public class BadgeService {
             userBadge.setBadge(badge);
             userBadgeRepository.saveAndFlush(userBadge);
             log.info("Awarded badge '{}' to user ID {}", badgeName, user.getId());
+
+            try {
+                notificationService.createNotification(
+                        user,
+                        "BADGE_EARNED",
+                        "New Badge Earned: " + badge.getName(),
+                        "Congratulations! You unlocked the " + badge.getName() + " badge: " + badge.getDescription(),
+                        badge.getId()
+                );
+            } catch (Exception ex) {
+                log.warn("Failed to create badge notification for user {}: {}", user.getId(), ex.getMessage());
+            }
+
             return true;
         } catch (DataIntegrityViolationException ex) {
             log.debug("Concurrent badge award attempt prevented by database constraint: {}", ex.getMessage());

@@ -1,12 +1,14 @@
-
 package com.carbontrack.carbontrackbackend.security;
 
 import com.carbontrack.carbontrackbackend.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.carbontrack.carbontrackbackend.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.carbontrack.carbontrackbackend.security.oauth2.OAuth2AuthenticationSuccessHandler;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,7 +30,6 @@ public class SecurityConfig {
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -69,6 +70,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/error",
                                 "/api/health",
                                 "/api/auth/register",
                                 "/api/auth/login",
@@ -77,13 +79,25 @@ public class SecurityConfig {
                                 "/api/auth/reset-password",
                                 "/oauth2/**",
                                 "/login/oauth2/**"
-                                ).permitAll()
-
-                                .requestMatchers(
-                                org.springframework.http.HttpMethod.GET,
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
                                 "/api/emission-factors"
-                                ).permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users/profile-image/**").permitAll()
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/profile-image/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/organisation/details").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/organisation/create", "/api/organisations").authenticated()
+                        .requestMatchers(
+                                "/api/organisation/invitations/*/accept",
+                                "/api/organisation/invitations/*/reject",
+                                "/api/invitations/**",
+                                "/api/organisations/**",
+                                "/api/organisation/public",
+                                "/api/organisation/discover",
+                                "/api/organisation/*/join",
+                                "/api/organisation/leave"
+                        ).authenticated()
+                        .requestMatchers("/api/organisation/**").hasRole("ORG_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -101,16 +115,14 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .logout(logout -> logout.disable())
                 .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(
-                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
-                        )
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"Access denied: You do not have permission to access this resource\"}");
+                        })
                 )
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 }
-
-

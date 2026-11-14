@@ -8,9 +8,26 @@ import '../styles/chatbot.css';
 
 export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('carbontrack_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('carbontrack_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <Navbar
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         isSidebarOpen={isSidebarOpen}
@@ -19,6 +36,8 @@ export default function Layout() {
       <div className="app-body">
         <Sidebar
           isOpen={isSidebarOpen}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={handleToggleCollapse}
           onClose={() => setIsSidebarOpen(false)}
         />
 

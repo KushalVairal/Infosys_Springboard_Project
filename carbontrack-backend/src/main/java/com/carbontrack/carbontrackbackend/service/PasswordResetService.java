@@ -93,8 +93,11 @@ public class PasswordResetService {
         otpRepository.save(verification);
 
         // Never log or return the OTP from the API.
-        emailService.sendPasswordResetOTP(
-                user.getEmail(), otp);
+        String displayName = (user.getFullName() != null && !user.getFullName().isBlank())
+                ? user.getFullName()
+                : user.getUsername();
+        emailService.sendPasswordResetEmail(
+                user.getEmail(), displayName, otp, otpExpirationMinutes);
     }
 
     @Transactional(noRollbackFor = IllegalArgumentException.class)

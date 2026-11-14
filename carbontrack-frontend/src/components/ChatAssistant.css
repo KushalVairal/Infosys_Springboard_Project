@@ -144,7 +144,7 @@
 .chat-message {
   padding: 10px 12px;
   border: 1px solid var(--border-soft);
-  border-radius: 14px 14px 14px 4px;
+  border-radius: 12px 12px 12px 4px;
   background: var(--bg-surface);
   color: var(--text-main);
   font-size: 0.84rem;
@@ -154,7 +154,7 @@
 
 .chat-message-row.user .chat-message {
   border-color: var(--forest-primary);
-  border-radius: 14px 14px 4px 14px;
+  border-radius: 12px 12px 4px 12px;
   background: var(--forest-primary);
   color: var(--text-inverse);
 }
@@ -178,18 +178,21 @@
 }
 
 .chat-suggestion {
-  padding: 8px 11px;
+  padding: 8px 12px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-full);
+  border-radius: 10px;
   background: var(--bg-surface);
   color: var(--forest-primary);
   font-size: 0.76rem;
+  font-weight: 500;
   text-align: left;
+  transition: all 0.18s ease;
 }
 
 .chat-suggestion:hover {
   border-color: var(--mint-accent);
   background: var(--bg-subtle);
+  transform: translateY(-1px);
 }
 
 .chat-composer {
@@ -217,7 +220,7 @@
   min-height: 42px;
   padding: 9px 13px;
   border-color: var(--border-soft);
-  border-radius: var(--radius-full);
+  border-radius: 10px;
   background: var(--bg-canvas);
   color: var(--text-main);
   font-size: 0.84rem;
@@ -240,8 +243,11 @@
   flex: 0 0 auto;
   padding: 0;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 10px;
+  border: none;
   background: var(--forest-primary);
+  cursor: pointer;
+  transition: all 0.18s ease;
 }
 
 .chat-send:disabled {

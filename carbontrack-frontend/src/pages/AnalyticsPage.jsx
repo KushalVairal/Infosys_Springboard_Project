@@ -2,6 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../api/client';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import AnimatedCounter from '../components/animations/AnimatedCounter';
+import CategoryRankingBarChart from '../components/analytics/CategoryRankingBarChart';
+import ActivityConsistencyMatrix from '../components/analytics/ActivityConsistencyMatrix';
 import {
   BarChart,
   Bar,
@@ -17,7 +20,11 @@ import {
 import {
   AlertCircle,
   Calendar,
-  RotateCw
+  RotateCw,
+  Flame,
+  Layers,
+  Activity,
+  Sparkles
 } from 'lucide-react';
 import { getCategoryColor, getCategoryForActivityType } from '../data/categories';
 import { useTheme } from '../context/ThemeContext';
@@ -85,23 +92,43 @@ export default function AnalyticsPage() {
     loadData();
   }, [loadData]);
 
-  // Aggregate category sector distribution directly from backend data
-  const sectorData = useMemo(() => {
-    const map = {};
-    const source = dailyData.length > 0 ? dailyData : monthlyData.length > 0 ? monthlyData : [];
+  // Category totals across the 4 verified sectors
+  const categoryTotals = useMemo(() => {
+    const map = { TRANSPORT: 0, ELECTRICITY: 0, FOOD: 0, SHOPPING: 0 };
+    const source = dailyData.length > 0 ? dailyData : activities.length > 0 ? activities : [];
 
     source.forEach((act) => {
       const cat = (act.category || 'OTHER').toUpperCase();
-      map[cat] = (map[cat] || 0) + (Number(act.totalCo2eKg) || 0);
+      const val = Number(act.totalCo2eKg || act.co2eKg) || 0;
+      if (map[cat] !== undefined) {
+        map[cat] += val;
+      }
     });
 
-    return Object.entries(map).map(([key, val]) => ({
-      name: key.charAt(0) + key.slice(1).toLowerCase(),
-      key,
-      emissions: Number((isTonnes ? val / 1000 : val).toFixed(isTonnes ? 3 : 2)),
-      rawKg: val
-    }));
-  }, [dailyData, monthlyData, isTonnes]);
+    if (Object.values(map).every((v) => v === 0) && activities.length > 0) {
+      activities.forEach((act) => {
+        const cat = (act.category || 'OTHER').toUpperCase();
+        const val = Number(act.co2eKg) || 0;
+        if (map[cat] !== undefined) {
+          map[cat] += val;
+        }
+      });
+    }
+
+    return map;
+  }, [dailyData, activities]);
+
+  // Aggregate category sector distribution directly from backend data
+  const sectorData = useMemo(() => {
+    return Object.entries(categoryTotals)
+      .filter(([, val]) => val > 0)
+      .map(([key, val]) => ({
+        name: key.charAt(0) + key.slice(1).toLowerCase(),
+        key,
+        emissions: Number((isTonnes ? val / 1000 : val).toFixed(isTonnes ? 3 : 2)),
+        rawKg: val
+      }));
+  }, [categoryTotals, isTonnes]);
 
   // Timeline series based on interval view (Daily, Weekly, Monthly)
   const timelineSeries = useMemo(() => {
@@ -175,7 +202,7 @@ export default function AnalyticsPage() {
       if (!map[type]) {
         map[type] = { type, category: cat, total: 0 };
       }
-      map[type].total += (Number(act.co2eKg) || 0);
+      map[type].total += Number(act.co2eKg) || 0;
     });
 
     return Object.values(map)
@@ -215,7 +242,11 @@ export default function AnalyticsPage() {
     );
   }
 
-  const hasData = dailyData.length > 0 || weeklyData.length > 0 || monthlyData.length > 0 || activities.length > 0;
+  const hasData =
+    dailyData.length > 0 ||
+    weeklyData.length > 0 ||
+    monthlyData.length > 0 ||
+    activities.length > 0;
 
   return (
     <div className="analytics-page">
@@ -253,87 +284,41 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Aggregation Interval & Timeframe Controls */}
-      <div className="analytics-filter-row">
-        <div className="filter-group">
-          <span className="filter-label">Interval:</span>
-          <div className="filter-pills">
-            <button
-              type="button"
-              className={`filter-pill ${intervalView === 'DAILY' ? 'active' : ''}`}
-              onClick={() => setIntervalView('DAILY')}
-            >
-              Daily Breakdown
-            </button>
-            <button
-              type="button"
-              className={`filter-pill ${intervalView === 'WEEKLY' ? 'active' : ''}`}
-              onClick={() => setIntervalView('WEEKLY')}
-            >
-              Weekly Rollup
-            </button>
-            <button
-              type="button"
-              className={`filter-pill ${intervalView === 'MONTHLY' ? 'active' : ''}`}
-              onClick={() => setIntervalView('MONTHLY')}
-            >
-              Monthly Rollup
-            </button>
-          </div>
-        </div>
-
-        <div className="filter-group">
-          <span className="filter-label">Timeframe:</span>
-          <div className="filter-pills">
-            <button
-              type="button"
-              className={`filter-pill ${datePreset === '30D' ? 'active' : ''}`}
-              onClick={() => setDatePreset('30D')}
-            >
-              Last 30 Days
-            </button>
-            <button
-              type="button"
-              className={`filter-pill ${datePreset === '90D' ? 'active' : ''}`}
-              onClick={() => setDatePreset('90D')}
-            >
-              Last 90 Days
-            </button>
-            <button
-              type="button"
-              className={`filter-pill ${datePreset === 'YTD' ? 'active' : ''}`}
-              onClick={() => setDatePreset('YTD')}
-            >
-              Year to Date
-            </button>
-            <button
-              type="button"
-              className={`filter-pill ${datePreset === '1Y' ? 'active' : ''}`}
-              onClick={() => setDatePreset('1Y')}
-            >
-              Last 1 Year
-            </button>
-          </div>
-        </div>
-      </div>
-
+      {/* SECTION 1: Overall Footprint KPI Cards */}
       {hasData ? (
         <>
-          {/* Top Level Summary Cards */}
           <div className="metrics-grid">
-            <div className="metric-card">
-              <span className="metric-title">Period Emissions Total</span>
+            <div className="metric-card card-primary-highlight">
+              <div className="metric-header">
+                <span className="metric-title">Period Emissions Total</span>
+                <span className="metric-icon-bubble">
+                  <Flame size={20} color="var(--forest-primary)" />
+                </span>
+              </div>
               <div className="metric-body">
-                <span className="metric-value">{displayTotal}</span>
+                <AnimatedCounter
+                  value={Number(displayTotal)}
+                  decimals={isTonnes ? 3 : 2}
+                  className="metric-value"
+                />
                 <span className="metric-unit">{unitLabel}</span>
               </div>
               <span className="metric-subtext">Sum of verified emissions in selected range</span>
             </div>
 
             <div className="metric-card">
-              <span className="metric-title">Recorded Periods</span>
+              <div className="metric-header">
+                <span className="metric-title">Recorded Periods</span>
+                <span className="metric-icon-bubble">
+                  <Calendar size={20} color="var(--forest-primary)" />
+                </span>
+              </div>
               <div className="metric-body">
-                <span className="metric-value">{timelineSeries.length}</span>
+                <AnimatedCounter
+                  value={timelineSeries.length}
+                  decimals={0}
+                  className="metric-value"
+                />
                 <span className="metric-unit">
                   {intervalView === 'DAILY' ? 'days' : intervalView === 'WEEKLY' ? 'weeks' : 'months'}
                 </span>
@@ -342,194 +327,209 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="metric-card">
-              <span className="metric-title">Dominant Category</span>
+              <div className="metric-header">
+                <span className="metric-title">Dominant Category</span>
+                <span className="metric-icon-bubble">
+                  <Layers size={20} color="var(--accent-amber)" />
+                </span>
+              </div>
               <div className="metric-body">
-                <span className="metric-value">{dominantCategory}</span>
+                <span className="metric-value top-cat-text">{dominantCategory}</span>
                 <span className="metric-unit">sector</span>
               </div>
               <span className="metric-subtext">Highest emitting activity category</span>
             </div>
           </div>
 
-          {/* Sector Share Row */}
+          {/* SECTION 2: Category Breakdown (Analytics 12 - Sortable Horizontal Bar Ranking) */}
+          <CategoryRankingBarChart
+            categoryTotals={categoryTotals}
+            unitLabel={unitLabel}
+            isTonnes={isTonnes}
+            isDark={isDark}
+          />
+
+          {/* SECTION 3: Monthly & Interval Trends */}
           <div className="dashboard-card">
             <div className="card-header-clean">
               <div>
-                <h2 className="card-heading">Sector Footprint Distribution</h2>
-                <p className="card-subheading">Aggregated category share calculated by backend repository</p>
+                <h2 className="card-heading">
+                  {intervalView === 'DAILY'
+                    ? 'Daily Emission Timeline'
+                    : intervalView === 'WEEKLY'
+                    ? 'Weekly Emission Summaries'
+                    : 'Monthly Footprint Rollup'}
+                </h2>
+                <p className="card-subheading">
+                  Backend aggregated {intervalView.toLowerCase()} totals ({unitLabel})
+                </p>
+              </div>
+
+              {/* Controls */}
+              <div className="analytics-filter-row" style={{ marginTop: 0, marginBottom: 0 }}>
+                <div className="filter-group">
+                  <div className="filter-pills">
+                    <button
+                      type="button"
+                      className={`filter-pill ${intervalView === 'DAILY' ? 'active' : ''}`}
+                      onClick={() => setIntervalView('DAILY')}
+                    >
+                      Daily
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill ${intervalView === 'WEEKLY' ? 'active' : ''}`}
+                      onClick={() => setIntervalView('WEEKLY')}
+                    >
+                      Weekly
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill ${intervalView === 'MONTHLY' ? 'active' : ''}`}
+                      onClick={() => setIntervalView('MONTHLY')}
+                    >
+                      Monthly
+                    </button>
+                  </div>
+                </div>
+
+                <div className="filter-group">
+                  <div className="filter-pills">
+                    <button
+                      type="button"
+                      className={`filter-pill ${datePreset === '30D' ? 'active' : ''}`}
+                      onClick={() => setDatePreset('30D')}
+                    >
+                      30D
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill ${datePreset === '90D' ? 'active' : ''}`}
+                      onClick={() => setDatePreset('90D')}
+                    >
+                      90D
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill ${datePreset === 'YTD' ? 'active' : ''}`}
+                      onClick={() => setDatePreset('YTD')}
+                    >
+                      YTD
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-pill ${datePreset === '1Y' ? 'active' : ''}`}
+                      onClick={() => setDatePreset('1Y')}
+                    >
+                      1Y
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="donut-chart-container">
-              {sectorData.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={sectorData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={4}
-                        dataKey="emissions"
-                      >
-                        {sectorData.map((entry) => (
-                          <Cell
-                            key={`sector-${entry.key}`}
-                            fill={getCategoryColor(entry.key, isDark)}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(val) => [`${val} ${unitLabel}`, 'Emissions']}
-                        contentStyle={{
-                          backgroundColor: isDark ? '#17241D' : '#FFFFFF',
-                          borderRadius: '8px',
-                          border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
-                          color: isDark ? '#EDF5EE' : '#1D2E24',
-                          boxShadow: 'var(--shadow-md)'
-                        }}
-                        itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
-                        labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="category-legend-list">
-                    {sectorData.map((s) => (
-                      <div key={s.key} className="legend-row">
-                        <span
-                          className="legend-color-box"
-                          style={{ backgroundColor: getCategoryColor(s.key, isDark) }}
-                        />
-                        <span className="legend-name">{s.name}</span>
-                        <span className="legend-amount">{s.emissions} {unitLabel}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
+
+            <div className="chart-container-box">
+              {timelineSeries.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={timelineSeries}
+                    margin={{ top: 20, right: 20, left: 15, bottom: 25 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#273B2F' : '#E5F0DF'} vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      stroke={isDark ? '#A3BBAA' : '#556B5B'}
+                      fontSize={11}
+                      tickLine={false}
+                    />
+                    <YAxis stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={12} tickLine={false} width={45} />
+                    <Tooltip
+                      formatter={(val) => [`${val} ${unitLabel}`, 'Emissions']}
+                      labelFormatter={(_, items) => items?.[0]?.payload?.fullDate || ''}
+                      contentStyle={{
+                        backgroundColor: isDark ? '#17241D' : '#FFFFFF',
+                        borderRadius: '8px',
+                        border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                        color: isDark ? '#EDF5EE' : '#1D2E24',
+                        boxShadow: 'var(--shadow-md)'
+                      }}
+                      itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
+                      labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
+                    />
+                    <Bar dataKey="emissions" fill={isDark ? '#3DA868' : '#244B35'} radius={[6, 6, 0, 0]} maxBarSize={48} />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
                 <div className="chart-empty-placeholder">
-                  <Calendar size={24} className="text-faint" />
-                  <p>No category records in this timeframe.</p>
+                  <Calendar size={28} className="text-faint" />
+                  <p>No {intervalView.toLowerCase()} records recorded for this timeframe.</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Charts Grid */}
-          <div className="analytics-charts-grid">
-            {/* Main Interval Timeline Chart */}
-            <div className="dashboard-card">
-              <div className="card-header-clean">
-                <div>
-                  <h2 className="card-heading">
-                    {intervalView === 'DAILY'
-                      ? 'Daily Emission Timeline'
-                      : intervalView === 'WEEKLY'
-                      ? 'Weekly Emission Summaries'
-                      : 'Monthly Footprint Rollup'}
-                  </h2>
-                  <p className="card-subheading">
-                    Backend aggregated {intervalView.toLowerCase()} totals ({unitLabel})
-                  </p>
-                </div>
-              </div>
+          {/* SECTION 4: Activity Consistency Matrix (Analytics 11) */}
+          <ActivityConsistencyMatrix
+            activities={activities}
+            unitLabel={unitLabel}
+            isTonnes={isTonnes}
+            isDark={isDark}
+          />
 
-              <div className="chart-container-box">
-                {timelineSeries.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart
-                      data={timelineSeries}
-                      margin={{ top: 20, right: 20, left: 15, bottom: 25 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#273B2F' : '#E5F0DF'} vertical={false} />
-                      <XAxis
-                        dataKey="name"
-                        stroke={isDark ? '#A3BBAA' : '#556B5B'}
-                        fontSize={11}
-                        tickLine={false}
-                      />
-                      <YAxis stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={12} tickLine={false} width={45} />
-                      <Tooltip
-                        formatter={(val) => [`${val} ${unitLabel}`, 'Emissions']}
-                        labelFormatter={(_, items) => items?.[0]?.payload?.fullDate || ''}
-                        contentStyle={{
-                          backgroundColor: isDark ? '#17241D' : '#FFFFFF',
-                          borderRadius: '8px',
-                          border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
-                          color: isDark ? '#EDF5EE' : '#1D2E24',
-                          boxShadow: 'var(--shadow-md)'
-                        }}
-                        itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
-                        labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
-                      />
-                      <Bar dataKey="emissions" fill={isDark ? '#3DA868' : '#244B35'} radius={[6, 6, 0, 0]} maxBarSize={48} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="chart-empty-placeholder">
-                    <Calendar size={28} className="text-faint" />
-                    <p>No {intervalView.toLowerCase()} records recorded for this timeframe.</p>
-                  </div>
-                )}
+          {/* SECTION 5: Top High-Impact Activities */}
+          <div className="dashboard-card">
+            <div className="card-header-clean">
+              <div>
+                <h2 className="card-heading">Top High-Impact Activities</h2>
+                <p className="card-subheading">Aggregated {unitLabel} by specific activity types</p>
               </div>
             </div>
 
-            {/* Top Activity Types Bar Chart */}
-            <div className="dashboard-card">
-              <div className="card-header-clean">
-                <div>
-                  <h2 className="card-heading">Top High-Impact Activities</h2>
-                  <p className="card-subheading">Aggregated {unitLabel} by specific activity types</p>
+            <div className="chart-container-box">
+              {activityTypeBreakdown.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={activityTypeBreakdown}
+                    margin={{ top: 20, right: 20, left: 15, bottom: 35 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#273B2F' : '#E5F0DF'} vertical={false} />
+                    <XAxis
+                      dataKey="type"
+                      stroke={isDark ? '#A3BBAA' : '#556B5B'}
+                      fontSize={11}
+                      angle={-20}
+                      textAnchor="end"
+                      tickLine={false}
+                    />
+                    <YAxis stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={12} tickLine={false} width={45} />
+                    <Tooltip
+                      formatter={(val) => [`${val} ${unitLabel}`, 'Emissions']}
+                      contentStyle={{
+                        backgroundColor: isDark ? '#17241D' : '#FFFFFF',
+                        borderRadius: '8px',
+                        border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                        color: isDark ? '#EDF5EE' : '#1D2E24',
+                        boxShadow: 'var(--shadow-md)'
+                      }}
+                      itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
+                      labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
+                    />
+                    <Bar dataKey="emissions" radius={[6, 6, 0, 0]} maxBarSize={42}>
+                      {activityTypeBreakdown.map((entry) => (
+                        <Cell
+                          key={`impact-${entry.type}`}
+                          fill={getCategoryColor(entry.category, isDark)}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="chart-empty-placeholder">
+                  <Calendar size={28} className="text-faint" />
+                  <p>No activity records available to rank impacts.</p>
                 </div>
-              </div>
-
-              <div className="chart-container-box">
-                {activityTypeBreakdown.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart
-                      data={activityTypeBreakdown}
-                      margin={{ top: 20, right: 20, left: 15, bottom: 35 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#273B2F' : '#E5F0DF'} vertical={false} />
-                      <XAxis
-                        dataKey="type"
-                        stroke={isDark ? '#A3BBAA' : '#556B5B'}
-                        fontSize={11}
-                        angle={-20}
-                        textAnchor="end"
-                        tickLine={false}
-                      />
-                      <YAxis stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={12} tickLine={false} width={45} />
-                      <Tooltip
-                        formatter={(val) => [`${val} ${unitLabel}`, 'Emissions']}
-                        contentStyle={{
-                          backgroundColor: isDark ? '#17241D' : '#FFFFFF',
-                          borderRadius: '8px',
-                          border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
-                          color: isDark ? '#EDF5EE' : '#1D2E24',
-                          boxShadow: 'var(--shadow-md)'
-                        }}
-                        itemStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24' }}
-                        labelStyle={{ color: isDark ? '#EDF5EE' : '#1D2E24', fontWeight: 600 }}
-                      />
-                      <Bar dataKey="emissions" radius={[6, 6, 0, 0]} maxBarSize={42}>
-                        {activityTypeBreakdown.map((entry) => (
-                          <Cell
-                            key={`impact-${entry.type}`}
-                            fill={getCategoryColor(entry.category, isDark)}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="chart-empty-placeholder">
-                    <Calendar size={28} className="text-faint" />
-                    <p>No activity records available to rank impacts.</p>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </>

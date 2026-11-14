@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import api, { getProfileImageUrl } from '../api/client';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Avatar from '../components/Avatar';
 import {
   User,
   Mail,
@@ -16,7 +18,13 @@ import {
   Shield,
   Calendar,
   Sun,
-  Moon
+  Moon,
+  Sparkles,
+  RefreshCw,
+  RotateCcw,
+  Palette,
+  Check,
+  Bell
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -41,8 +49,17 @@ export default function ProfilePage() {
     location: profile?.location || '',
     profileImageUrl: profile?.profileImageUrl || '',
     preferredUnit: profile?.preferredUnit || 'KG_CO2E',
-    goalVisibility: profile?.goalVisibility ?? true
+    goalVisibility: profile?.goalVisibility ?? true,
+    avatarSeed: profile?.avatarSeed || ''
   }));
+
+  // Avatar Studio state
+  const [selectedAvatarSeed, setSelectedAvatarSeed] = useState(() => profile?.avatarSeed || profile?.username || 'carbon-member');
+  const [customSeedInput, setCustomSeedInput] = useState('');
+  const [variationRoll, setVariationRoll] = useState(0);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [avatarSuccessMsg, setAvatarSuccessMsg] = useState('');
+  const [avatarErrorMsg, setAvatarErrorMsg] = useState('');
 
   // Sync profile details
   useEffect(() => {
@@ -58,8 +75,10 @@ export default function ProfilePage() {
             location: p.location || '',
             profileImageUrl: p.profileImageUrl || '',
             preferredUnit: p.preferredUnit || 'KG_CO2E',
-            goalVisibility: p.goalVisibility ?? true
+            goalVisibility: p.goalVisibility ?? true,
+            avatarSeed: p.avatarSeed || ''
           });
+          setSelectedAvatarSeed(p.avatarSeed || p.username || 'carbon-member');
           updateProfileState(p);
         }
       } catch (err) {
@@ -196,6 +215,7 @@ export default function ProfilePage() {
         phoneNumber: formData.phoneNumber.trim(),
         location: formData.location.trim(),
         profileImageUrl: formData.profileImageUrl.trim(),
+        avatarSeed: formData.avatarSeed ? formData.avatarSeed.trim() : '',
         preferredUnit: formData.preferredUnit,
         goalVisibility: formData.goalVisibility
       });
@@ -213,6 +233,79 @@ export default function ProfilePage() {
       setIsSaving(false);
     }
   };
+
+  // Avatar Studio Handlers
+  const handleSelectSeed = (seed) => {
+    setSelectedAvatarSeed(seed);
+    setAvatarSuccessMsg('');
+    setAvatarErrorMsg('');
+  };
+
+  const handleSaveAvatar = async () => {
+    if (!selectedAvatarSeed || selectedAvatarSeed.trim().length === 0) {
+      setAvatarErrorMsg('Please select or specify an avatar seed.');
+      return;
+    }
+    const cleanSeed = selectedAvatarSeed.trim().replace(/[^a-zA-Z0-9_.-]/g, '-').slice(0, 100);
+    setIsSavingAvatar(true);
+    setAvatarErrorMsg('');
+    setAvatarSuccessMsg('');
+
+    try {
+      const updated = await api.users.updateMe({
+        ...formData,
+        avatarSeed: cleanSeed
+      });
+      setFormData((prev) => ({ ...prev, avatarSeed: cleanSeed }));
+      updateProfileState(updated);
+      setAvatarSuccessMsg('Blobatar avatar saved successfully!');
+      setTimeout(() => setAvatarSuccessMsg(''), 4000);
+    } catch (err) {
+      setAvatarErrorMsg(err?.message || 'Failed to save avatar choice.');
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
+
+  const handleResetAvatarToDefault = async () => {
+    const defaultSeed = formData.username || 'carbon-member';
+    setSelectedAvatarSeed(defaultSeed);
+    setIsSavingAvatar(true);
+    setAvatarErrorMsg('');
+    setAvatarSuccessMsg('');
+
+    try {
+      const updated = await api.users.updateMe({
+        ...formData,
+        avatarSeed: ''
+      });
+      setFormData((prev) => ({ ...prev, avatarSeed: '' }));
+      updateProfileState(updated);
+      setAvatarSuccessMsg('Avatar reset to default account username!');
+      setTimeout(() => setAvatarSuccessMsg(''), 4000);
+    } catch (err) {
+      setAvatarErrorMsg(err?.message || 'Failed to reset avatar.');
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
+
+  const handleRollVariations = () => {
+    setVariationRoll((prev) => prev + 1);
+  };
+
+  // Generate 8 diverse seed variations based on the username & roll index
+  const baseUsername = formData.username || 'member';
+  const avatarVariations = [
+    baseUsername,
+    `${baseUsername}-leaf`,
+    `${baseUsername}-forest`,
+    `${baseUsername}-solar`,
+    `${baseUsername}-ocean`,
+    `${baseUsername}-eco${variationRoll > 0 ? variationRoll : ''}`,
+    `${baseUsername}-bloom${variationRoll > 0 ? variationRoll : ''}`,
+    `${baseUsername}-zen${variationRoll > 0 ? variationRoll : ''}`
+  ];
 
   if (loading) {
     return (
@@ -239,17 +332,16 @@ export default function ProfilePage() {
   return (
     <div className="profile-page">
       <div className="profile-header-card">
-        <div className="profile-avatar-large">
-          {showAvatarImage ? (
-            <img
-              src={activePhotoUrl}
-              alt="Avatar preview"
-              className="avatar-img-large"
-              onError={() => setImageLoadError(true)}
-            />
-          ) : (
-            <span>{avatarInitial}</span>
-          )}
+        <div className="profile-avatar-large" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none' }}>
+          <Avatar
+            avatarSeed={formData.avatarSeed}
+            seed={formData.avatarSeed || formData.username}
+            username={formData.username}
+            name={formData.fullName || formData.username}
+            profileImageUrl={activePhotoUrl}
+            size={88}
+            shape="squircle"
+          />
         </div>
 
         <div className="profile-header-info">
@@ -423,8 +515,13 @@ export default function ProfilePage() {
                       onError={() => setImageLoadError(true)}
                     />
                   ) : (
-                    <div className="photo-preview-placeholder">
-                      <span>{avatarInitial}</span>
+                    <div className="photo-preview-placeholder" style={{ background: 'transparent', border: 'none', padding: 0 }}>
+                      <Avatar
+                        seed={formData.avatarSeed || formData.username}
+                        name={formData.fullName || formData.username}
+                        size={64}
+                        shape="squircle"
+                      />
                     </div>
                   )}
                 </div>
@@ -462,6 +559,259 @@ export default function ProfilePage() {
               </div>
               {uploadError && <span className="field-error-message">{uploadError}</span>}
             </div>
+          </div>
+        </div>
+
+        {/* Blobatar Avatar Studio Section */}
+        <div className="dashboard-card profile-section-card">
+          <div className="card-header-clean">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={20} color="var(--forest-primary, #2e7d32)" />
+              <h2 className="card-heading" style={{ margin: 0 }}>Blobatar Avatar Studio</h2>
+            </div>
+            <p className="card-subheading">
+              Customize your profile avatar with deterministic geometric avatars powered by{' '}
+              <a
+                href="https://blobatar.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--color-primary, #2e7d32)', textDecoration: 'underline' }}
+              >
+                Blobatar
+              </a>
+              . Your chosen avatar persists across your profile, sidebar, leaderboards, and team listings.
+            </p>
+          </div>
+
+          {avatarSuccessMsg && (
+            <div className="auth-alert alert-info" style={{ margin: '1rem 0' }} role="status">
+              <CheckCircle2 size={18} />
+              <span>{avatarSuccessMsg}</span>
+            </div>
+          )}
+
+          {avatarErrorMsg && (
+            <div className="auth-alert alert-error" style={{ margin: '1rem 0' }} role="alert">
+              <AlertCircle size={18} />
+              <span>{avatarErrorMsg}</span>
+            </div>
+          )}
+
+          {/* Avatar Preview & Comparison Row */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '1.25rem',
+              margin: '1.25rem 0',
+              padding: '1.25rem',
+              background: 'var(--bg-subtle, #f8fafc)',
+              borderRadius: '12px',
+              border: '1px solid var(--border-soft, #e2e8f0)'
+            }}
+          >
+            {/* Selected / Live Preview */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <Avatar
+                seed={selectedAvatarSeed}
+                name={formData.fullName || formData.username}
+                size={76}
+                shape="squircle"
+                style={{
+                  boxShadow: '0 4px 12px rgba(46, 125, 50, 0.15)',
+                  border: '2px solid var(--forest-primary, #2e7d32)'
+                }}
+              />
+              <div>
+                <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--forest-primary, #2e7d32)', fontWeight: 700 }}>
+                  {selectedAvatarSeed === (formData.avatarSeed || formData.username) ? 'Current Active Avatar' : 'Unsaved Preview'}
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
+                  Seed: <code>{selectedAvatarSeed}</code>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Deterministic SVG rendering
+                </div>
+              </div>
+            </div>
+
+            {/* Default Baseline Reference */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <Avatar
+                seed={formData.username || 'member'}
+                name={formData.fullName || formData.username}
+                size={76}
+                shape="squircle"
+                style={{ opacity: 0.85 }}
+              />
+              <div>
+                <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  Default Account Avatar
+                </div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginTop: '2px' }}>
+                  Base Seed: <code>{formData.username || 'member'}</code>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs"
+                  onClick={handleResetAvatarToDefault}
+                  disabled={isSavingAvatar}
+                  style={{ marginTop: '4px', padding: '2px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <RotateCcw size={12} />
+                  <span>Reset to Default</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Generated Style Options */}
+          <div style={{ margin: '1.5rem 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <label className="form-label" style={{ margin: 0, fontWeight: 600 }}>
+                Choose Another Generated Avatar
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary btn-xs"
+                onClick={handleRollVariations}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <RefreshCw size={12} />
+                <span>Roll New Variations</span>
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
+                gap: '0.75rem'
+              }}
+            >
+              {avatarVariations.map((vSeed) => {
+                const isSelected = selectedAvatarSeed === vSeed;
+                return (
+                  <button
+                    type="button"
+                    key={vSeed}
+                    onClick={() => handleSelectSeed(vSeed)}
+                    style={{
+                      padding: '10px 8px',
+                      borderRadius: '10px',
+                      background: isSelected ? 'var(--forest-tint, #e8f5e9)' : 'var(--bg-surface, #ffffff)',
+                      border: isSelected ? '2px solid var(--forest-primary, #2e7d32)' : '1px solid var(--border-soft, #e2e8f0)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease',
+                      position: 'relative'
+                    }}
+                    title={`Select seed: ${vSeed}`}
+                  >
+                    {isSelected && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          background: 'var(--forest-primary, #2e7d32)',
+                          color: '#ffffff',
+                          borderRadius: '50%',
+                          width: '16px',
+                          height: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Check size={10} strokeWidth={3} />
+                      </span>
+                    )}
+                    <Avatar seed={vSeed} size={48} shape="squircle" />
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: isSelected ? 700 : 500,
+                        color: isSelected ? 'var(--forest-primary, #2e7d32)' : 'var(--text-muted)',
+                        maxWidth: '90px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {vSeed.replace(`${baseUsername}-`, '') || 'Default'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Custom Seed Input Option */}
+          <div style={{ margin: '1.25rem 0' }}>
+            <label htmlFor="custom-avatar-seed" className="form-label" style={{ fontSize: '0.85rem' }}>
+              Or Enter a Custom Avatar Seed (Nickname / Theme)
+            </label>
+            <div style={{ display: 'flex', gap: '8px', maxWidth: '400px' }}>
+              <input
+                id="custom-avatar-seed"
+                type="text"
+                placeholder="e.g. eco-champion, leaf-2026"
+                maxLength={50}
+                value={customSeedInput}
+                onChange={(e) => {
+                  const clean = e.target.value.replace(/[^a-zA-Z0-9_.-]/g, '');
+                  setCustomSeedInput(clean);
+                  if (clean.trim()) {
+                    setSelectedAvatarSeed(clean.trim());
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-soft, #e2e8f0)',
+                  background: 'var(--bg-surface, #ffffff)',
+                  color: 'var(--text-main)',
+                  fontSize: '0.875rem'
+                }}
+              />
+            </div>
+            <span className="field-hint">Alphanumeric characters, underscores, and dashes allowed.</span>
+          </div>
+
+          {/* Avatar Action Buttons */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-soft, #e2e8f0)' }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleSaveAvatar}
+              disabled={isSavingAvatar || selectedAvatarSeed === (formData.avatarSeed || formData.username)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              {isSavingAvatar ? (
+                <LoadingSpinner size="sm" message="" />
+              ) : (
+                <>
+                  <Save size={15} />
+                  <span>Save Avatar</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleResetAvatarToDefault}
+              disabled={isSavingAvatar || (!formData.avatarSeed && selectedAvatarSeed === formData.username)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <RotateCcw size={15} />
+              <span>Reset to Default</span>
+            </button>
           </div>
         </div>
 
@@ -572,6 +922,24 @@ export default function ProfilePage() {
                   </span>
                 </div>
               </label>
+            </div>
+
+            {/* Notification Preferences Shortcut */}
+            <div className="form-group" style={{ marginTop: '1.25rem', padding: '1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-soft)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'block' }}>
+                    Notification Preferences
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Configure browser alerts, emails, milestone celebrations, and invitation updates.
+                  </span>
+                </div>
+                <Link to="/notifications" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Bell size={15} />
+                  <span>Manage Notifications</span>
+                </Link>
+              </div>
             </div>
 
             <div className="profile-save-action-row">

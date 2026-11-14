@@ -97,6 +97,13 @@ public class GoalProjectionService {
                 activityLogRepository.findActivitiesForWeeklyAggregation(
                         user.getId(), startDate, observedEnd);
 
+        String goalCategory = goal.getCategory() != null ? goal.getCategory().trim().toUpperCase() : "ALL";
+        if (!"ALL".equals(goalCategory) && !"ALL_CATEGORIES".equals(goalCategory)) {
+            activities = activities.stream()
+                    .filter(a -> matchesCategory(a, goalCategory))
+                    .toList();
+        }
+
         BigDecimal current = zero;
 
         Map<LocalDate, BigDecimal> dailyTotals = new TreeMap<>();
@@ -383,5 +390,28 @@ public class GoalProjectionService {
         }
 
         return total;
+    }
+
+    private boolean matchesCategory(ActivityLog activity, String goalCategory) {
+        if (activity == null || goalCategory == null) return false;
+        String cat = activity.getCategory() != null ? activity.getCategory().trim().toUpperCase() : "";
+        String type = activity.getActivityType() != null ? activity.getActivityType().trim().toUpperCase() : "";
+
+        return switch (goalCategory) {
+            case "TRANSPORT" -> cat.equals("TRANSPORT") || type.contains("CAR") || type.contains("BUS")
+                    || type.contains("TRAIN") || type.contains("FLIGHT") || type.contains("MOTORCYCLE")
+                    || type.contains("BICYCLE") || type.contains("WALKING");
+            case "ENERGY", "ELECTRICITY" -> cat.equals("ELECTRICITY") || cat.equals("ENERGY")
+                    || type.contains("ELEC") || type.contains("GRID") || type.contains("SOLAR")
+                    || type.contains("LPG") || type.contains("GAS") || type.contains("HEATING");
+            case "FOOD" -> cat.equals("FOOD") || type.contains("MEAL") || type.contains("FOOD")
+                    || type.contains("BEEF") || type.contains("VEGAN") || type.contains("VEGETARIAN")
+                    || type.contains("CHICKEN") || type.contains("MEAT");
+            case "SHOPPING" -> cat.equals("SHOPPING") || type.contains("CLOTH") || type.contains("ELECTRONIC")
+                    || type.contains("GROCER");
+            case "WASTE" -> cat.equals("WASTE") || type.contains("WASTE");
+            case "WATER" -> cat.equals("WATER") || type.contains("WATER");
+            default -> cat.equalsIgnoreCase(goalCategory);
+        };
     }
 }

@@ -1,4 +1,3 @@
-
 package com.carbontrack.carbontrackbackend.entity;
 
 import jakarta.persistence.*;
@@ -11,11 +10,12 @@ import java.time.LocalDateTime;
     name = "user_achievement",
     uniqueConstraints = {
         @UniqueConstraint(
-            name = "uq_user_achievement_period",
+            name = "uq_user_achievement_period_scope",
             columnNames = {
                 "user_id",
                 "leaderboard_period",
-                "period_start_date"
+                "period_start_date",
+                "scope"
             }
         )
     }
@@ -35,6 +35,9 @@ public class UserAchievement {
 
     @Column(name = "leaderboard_period", nullable = false, length = 20)
     private String leaderboardPeriod;
+
+    @Column(name = "scope", nullable = false, length = 30)
+    private String scope = "OVERALL";
 
     @Column(name = "rank_at_claim", nullable = false)
     private Integer rankAtClaim;
@@ -86,6 +89,14 @@ public class UserAchievement {
 
     public void setLeaderboardPeriod(String leaderboardPeriod) {
         this.leaderboardPeriod = leaderboardPeriod;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    public void setScope(String scope) {
+        this.scope = (scope != null && !scope.isBlank()) ? scope.trim().toUpperCase() : "OVERALL";
     }
 
     public Integer getRankAtClaim() {

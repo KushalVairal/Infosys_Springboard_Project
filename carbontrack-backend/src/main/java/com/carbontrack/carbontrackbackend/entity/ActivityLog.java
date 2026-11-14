@@ -52,7 +52,7 @@ public class ActivityLog {
     public ActivityLog() {
     }
 
-    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
@@ -84,6 +84,8 @@ public class ActivityLog {
     public void setLogDate(LocalDate logDate) {
         this.logDate = logDate;
     }
+
+    public Long getId() { return id; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

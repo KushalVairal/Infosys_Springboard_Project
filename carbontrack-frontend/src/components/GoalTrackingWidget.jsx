@@ -23,6 +23,7 @@ import {
 import {
   ResponsiveContainer,
   ComposedChart,
+  BarChart,
   Line,
   Bar,
   XAxis,
@@ -95,8 +96,8 @@ function getUnifiedGoalStatus(goal, projection) {
 
   if (projStatus === 'INSUFFICIENT_DATA') {
     return {
-      label: 'On track',
-      key: 'ON_TRACK',
+      label: 'Insufficient data',
+      key: 'INSUFFICIENT_DATA',
       sublabel: 'Building baseline',
       color: 'info',
       icon: Clock,
@@ -124,19 +125,22 @@ export default function GoalTrackingWidget({
   const unitLabel = isTonnes ? 't CO₂e' : 'kg CO₂e';
 
   const [goals, setGoals] = useState(initialGoals || []);
+  // New state for recent activity data (last 7 days)
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [activitiesError, setActivitiesError] = useState(null);
   const [selectedGoalId, setSelectedGoalId] = useState(null);
   const [projection, setProjection] = useState(null);
   const [loading, setLoading] = useState(!initialGoals);
   const [projectionLoading, setProjectionLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch all user goals if not provided
+  // Fetch all user goals if they are not supplied by the parent.
   const fetchGoals = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.goals.getMyGoals();
-      const list = Array.isArray(res) ? res : [];
-      setGoals(list);
+      setGoals(Array.isArray(res) ? res : []);
       setError(null);
     } catch (err) {
       setError(err.message || 'Failed to load sustainability goals');
@@ -145,36 +149,13 @@ export default function GoalTrackingWidget({
     }
   }, []);
 
-  useEffect(() => {
-    if (!initialGoals) {
-      fetchGoals();
-    } else {
-      setGoals(initialGoals);
-      setLoading(false);
-    }
-  }, [initialGoals, fetchGoals]);
-
-  // Active goals filter
-  const activeGoals = useMemo(() => {
-    const list = goals.filter((g) => g.status === 'ACTIVE' || !g.completed);
-    return list.length > 0 ? list : goals;
-  }, [goals]);
-
-  // Active goal selected
-  const activeGoal = useMemo(() => {
-    if (selectedGoalId) {
-      const match = goals.find((g) => g.id === Number(selectedGoalId));
-      if (match) return match;
-    }
-    return activeGoals[0] || null;
-  }, [selectedGoalId, activeGoals, goals]);
-
-  // Fetch projection for active goal
+  // Fetch the projection for a selected goal.
   const fetchProjection = useCallback(async (goalId) => {
     if (!goalId) {
       setProjection(null);
       return;
     }
+
     try {
       setProjectionLoading(true);
       const proj = await api.goals.getProjection(goalId);
@@ -187,6 +168,93 @@ export default function GoalTrackingWidget({
     }
   }, []);
 
+  // Keep the widget in sync when the parent supplies or changes goals.
+  useEffect(() => {
+    if (Array.isArray(initialGoals)) {
+      setGoals(initialGoals);
+      setLoading(false);
+    } else {
+      fetchGoals();
+    }
+  }, [initialGoals, fetchGoals]);
+
+  // Active goals filter.
+  const activeGoals = useMemo(() => {
+    const list = goals.filter((goal) => goal.status === 'ACTIVE' || !goal.completed);
+    return list.length > 0 ? list : goals;
+  }, [goals]);
+
+  // Active goal selected.
+  const activeGoal = useMemo(() => {
+    if (selectedGoalId !== null) {
+      const match = goals.find((goal) => goal.id === Number(selectedGoalId));
+      if (match) return match;
+    }
+    return activeGoals[0] || null;
+  }, [selectedGoalId, activeGoals, goals]);
+
+  // Fetch recent activities and aggregate the last seven local calendar days.
+  const fetchRecentActivities = useCallback(async () => {
+    try {
+      setActivitiesLoading(true);
+      const data = await api.activities.getMine();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const toLocalDateKey = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const totals = {};
+      for (let i = 0; i < 7; i += 1) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        totals[toLocalDateKey(date)] = 0;
+      }
+
+      if (Array.isArray(data)) {
+        data.forEach((activity) => {
+          if (!activity) return;
+          const rawDate = activity.logDate || activity.timestamp;
+          if (!rawDate) return;
+
+          const activityDate = new Date(rawDate);
+          if (Number.isNaN(activityDate.getTime())) return;
+          const key = toLocalDateKey(activityDate);
+          if (Object.prototype.hasOwnProperty.call(totals, key)) {
+            totals[key] += Number(activity.co2eKg) || 0;
+          }
+        });
+      }
+
+      const recent = Object.entries(totals)
+        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+        .map(([date, kg]) => ({
+          date,
+          label: new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+            weekday: 'short'
+          }),
+          kg: Number(kg.toFixed(2))
+        }));
+
+      setRecentActivities(recent);
+      setActivitiesError(null);
+    } catch (err) {
+      setActivitiesError(err.message || 'Failed to load recent activities');
+      setRecentActivities([]);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRecentActivities();
+  }, [fetchRecentActivities]);
+
+  // Refresh the projection whenever the selected active goal changes.
   useEffect(() => {
     if (activeGoal?.id) {
       fetchProjection(activeGoal.id);
@@ -595,6 +663,44 @@ export default function GoalTrackingWidget({
         </div>
       </div>
 
+      {/* Seven-Day Emissions Trend Chart (Requirement 9) */}
+      <div className="seven-day-trend-section">
+        <div className="trend-header">
+          <h4 className="chart-subheading">Last 7 Days Emissions Trend</h4>
+        </div>
+        {activitiesLoading ? (
+          <div className="chart-loading-box">
+            <LoadingSpinner size="sm" message="Loading recent activities..." />
+          </div>
+        ) : activitiesError ? (
+          <div className="chart-error">
+            <AlertCircle size={16} /> <span>{activitiesError}</span>
+          </div>
+        ) : recentActivities.length === 0 ? (
+          <div className="chart-placeholder-compact">
+            <p>No activity data for the past week.</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={recentActivities} margin={{ top: 10, right: 15, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#273B2F' : '#E5F0DF'} />
+              <XAxis dataKey="date" stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={11} tickLine={false} />
+              <YAxis stroke={isDark ? '#A3BBAA' : '#556B5B'} fontSize={11} tickLine={false} width={45} />
+              <Tooltip
+                formatter={(val) => `${val} ${unitLabel}`}
+                contentStyle={{
+                  backgroundColor: isDark ? '#17241D' : '#FFFFFF',
+                  borderRadius: '8px',
+                  border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                  color: isDark ? '#EDF5EE' : '#1D2E24',
+                  fontSize: '12px'
+                }}
+              />
+              <Bar dataKey="kg" fill="var(--mint-accent)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
       {/* Widget Footer */}
       <div className="goal-widget-footer">
         <Link to="/goals" className="btn btn-ghost btn-sm">
