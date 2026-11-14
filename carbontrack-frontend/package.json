@@ -11,11 +11,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@blobatar/react": "^2.7.0",
+    "@types/three": "^0.187.0",
+    "blobatar": "^2.7.0",
+    "gsap": "^3.15.1",
     "lucide-react": "^1.57.0",
+    "motion": "^14.13.0",
+    "ogl": "^1.0.11",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
@@ -25,4 +32,3 @@
     "vite": "^8.3.0"
   }
 }
-

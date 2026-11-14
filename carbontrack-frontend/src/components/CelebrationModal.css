@@ -1,0 +1,291 @@
+/* Celebration Modal Styles - CarbonTrack Design System */
+.celebration-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 19, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  z-index: 99990;
+  padding: 16px;
+  overflow-y: auto;
+  animation: modal-fade-in 0.25s ease-out;
+}
+
+.celebration-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-surface, #FFFFFF);
+  border: 1px solid var(--border-soft, #D7E6CE);
+  border-radius: 24px;
+  padding: clamp(24px, 4vw, 36px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-sizing: border-box;
+  animation: modal-scale-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] .celebration-modal-card {
+  background: var(--bg-surface, #17241D);
+  border-color: var(--border-soft, #273B2F);
+}
+
+.celebration-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft, #D7E6CE);
+  background: var(--bg-subtle, #F5F8F1);
+  color: var(--text-muted, #52795E);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.celebration-close-btn:hover {
+  background: var(--border-soft, #D7E6CE);
+  color: var(--text-main, #143422);
+}
+
+/* Header Pill */
+.celebration-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #16a34a;
+  font-size: 0.76rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 20px;
+}
+
+[data-theme="dark"] .celebration-pill {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.25);
+}
+
+.sparkle-anim {
+  animation: sparkle-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
+
+/* Emblem Artwork */
+.celebration-emblem-wrap {
+  margin-bottom: 18px;
+}
+
+.celebration-badge-circle {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+  border: 4px solid #ffffff;
+}
+
+.celebration-medal-img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
+}
+
+/* Title & Description */
+.celebration-title {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-main, #143422);
+  margin: 0 0 8px;
+  line-height: 1.25;
+}
+
+.celebration-desc {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-muted, #52795E);
+  margin: 0 0 20px;
+  max-width: 390px;
+}
+
+/* Metadata Details */
+.celebration-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--bg-subtle, #F5F8F1);
+  border: 1px solid var(--border-soft, #D7E6CE);
+  margin-bottom: 24px;
+  box-sizing: border-box;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  letter-spacing: 0.04em;
+}
+
+.meta-val-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 750;
+  color: var(--text-main, #143422);
+}
+
+.meta-val-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main, #143422);
+}
+
+/* Action Buttons */
+.celebration-action-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.celebration-btn-primary,
+.celebration-btn-secondary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+/* Direct Social Strip */
+.celebration-social-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.social-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+}
+
+.social-share-pill {
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid var(--border-soft, #D7E6CE);
+  background: var(--bg-subtle, #F5F8F1);
+  color: var(--text-main, #143422);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.social-share-pill.whatsapp:hover {
+  background: #25D366;
+  color: #FFFFFF;
+  border-color: #25D366;
+}
+
+.social-share-pill.linkedin:hover {
+  background: #0077B5;
+  color: #FFFFFF;
+  border-color: #0077B5;
+}
+
+.social-share-pill.instagram:hover {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  color: #FFFFFF;
+  border-color: transparent;
+}
+
+.social-share-pill.copy:hover {
+  border-color: var(--forest-primary, #2E8540);
+  color: var(--forest-primary, #2E8540);
+}
+
+/* Animations */
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-scale-up {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Mobile Screens (< 480px) */
+@media (max-width: 480px) {
+  .celebration-modal-card {
+    padding: 22px 16px;
+    border-radius: 18px;
+  }
+
+  .celebration-title {
+    font-size: 1.25rem;
+  }
+
+  .celebration-action-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .celebration-btn-primary,
+  .celebration-btn-secondary {
+    width: 100%;
+  }
+
+  .celebration-social-strip {
+    gap: 6px;
+  }
+}
+

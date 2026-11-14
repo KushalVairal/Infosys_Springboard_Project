@@ -1,14 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Award, RefreshCw, Trophy, Medal, Leaf, Zap, Car, Utensils,
-  ShoppingBag, Lightbulb, Users, CalendarDays, TrendingDown,
-  AlertCircle, X, Download, Share2, Crown, Sparkles, LockKeyhole
+  ShoppingBag, Lightbulb, Users, CalendarDays,
+  AlertCircle, X, Download, Share2, Crown, Sparkles, LockKeyhole,
+  Building2, Globe
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import api, { getBadgeIconUrl } from '../api/client';
 import '../styles/leaderboard.css';
 import goldLeafMedal from '../assets/leaderboard-gold-leaf.png';
 import silverLeafMedal from '../assets/leaderboard-silver-leaf.png';
 import bronzeLeafMedal from '../assets/leaderboard-bronze-leaf.png';
+import CelebrationCursor, { triggerCelebrationConfetti } from '../components/CelebrationCursor';
 
 const PERIODS = [
   { value: 'DAILY', label: 'Daily' },
@@ -104,8 +107,12 @@ function Podium({ entries }) {
         {slots.map(({ entry, place, className }) => (
           <div className={`lb-podium-slot ${className}`} key={place}>
             {entry ? <>
-              <div className="lb-avatar">
-                <img src={PODIUM_MEDALS[place]} alt={`${MEDAL_NAMES[place]} leaf medal`} />
+              <div className="lb-podium-medal" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, marginBottom: '6px' }}>
+                <img
+                  src={PODIUM_MEDALS[place]}
+                  alt={`${MEDAL_NAMES[place]} achievement medal`}
+                  style={{ width: 50, height: 50, objectFit: 'contain', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.22))' }}
+                />
               </div>
               <strong className="lb-podium-name" title={entry.username}>{entry.username}</strong>
               <span className="lb-podium-emissions">{formatKg(entry.totalCo2eKg)}</span>
@@ -131,7 +138,7 @@ function ParticipantRow({ entry }) {
         onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>
         <span className={`lb-rank ${rankClass}`}>
           {entry.rank <= 3
-            ? <img className="lb-rank-medal" src={PODIUM_MEDALS[entry.rank]} alt="" />
+            ? <img className="lb-rank-medal" src={PODIUM_MEDALS[entry.rank]} alt={`${MEDAL_NAMES[entry.rank]} medal`} />
             : `#${entry.rank}`}
         </span>
         <span className="lb-user">
@@ -167,8 +174,9 @@ function ParticipantRow({ entry }) {
 
 function AchievementModal({ achievement, onClose }) {
   const [shareMessage, setShareMessage] = useState('');
-  const medalImage = PODIUM_MEDALS[achievement.rank];
-  const title = `${MEDAL_NAMES[achievement.rank]} Leaf Achievement`;
+  const medalImage = PODIUM_MEDALS[achievement.rank] || PODIUM_MEDALS[1];
+  const medalName = MEDAL_NAMES[achievement.rank] || 'Eco Star';
+  const title = `${medalName} Leaf Achievement`;
   const shareText = `I earned the ${title} in CarbonTrack ${achievement.periodLabel}! My rank: #${achievement.rank}. My recorded emissions: ${formatKg(achievement.emissionsKg)}.`;
 
   useEffect(() => {
@@ -309,7 +317,9 @@ const downloadAchievement = async () => {
 }
 
 export default function LeaderboardPage() {
+  const { profile, user: authUser } = useAuth();
   const [period, setPeriod] = useState('MONTHLY');
+  const [scope, setScope] = useState('OVERALL'); // 'OVERALL' | 'ORGANISATION'
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -318,21 +328,61 @@ export default function LeaderboardPage() {
   const [collectionLoading, setCollectionLoading] = useState(true);
   const [collectionError, setCollectionError] = useState('');
   const [claiming, setClaiming] = useState(false);
+  const [isCelebrationActive, setIsCelebrationActive] = useState(false);
+  const [cardPopupOpen, setCardPopupOpen] = useState(false);
+  const rankCardRef = useRef(null);
 
-  const loadLeaderboard = useCallback(async (selectedPeriod = period) => {
+  // Strictly reset celebration state on unmount / navigating away from Leaderboard page
+  useEffect(() => {
+    return () => {
+      setIsCelebrationActive(false);
+      setCardPopupOpen(false);
+    };
+  }, []);
+
+  // Handle outside pointer interaction to dismiss mobile/touch popup
+  useEffect(() => {
+    if (!cardPopupOpen) return;
+    const handleOutsideClick = (e) => {
+      if (rankCardRef.current && !rankCardRef.current.contains(e.target)) {
+        setCardPopupOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsideClick);
+    };
+  }, [cardPopupOpen]);
+
+  const hasOrganisation = Boolean(
+    profile?.organisationId ||
+    profile?.organisationName ||
+    authUser?.organisation ||
+    authUser?.organisationId
+  );
+  const organisationName =
+    profile?.organisationName ||
+    (typeof authUser?.organisation === 'string'
+      ? authUser?.organisation
+      : authUser?.organisation?.name) ||
+    'My Organisation';
+
+  const loadLeaderboard = useCallback(async (selectedPeriod = period, selectedScope = scope) => {
     setLoading(true);
     setError('');
     try {
-      const response = await api.leaderboard.getLeaderboard(selectedPeriod);
+      const response = await api.leaderboard.getLeaderboard(selectedPeriod, selectedScope);
       setData(response);
     } catch (err) {
-      setError(err?.message || 'Unable to load the community leaderboard.');
+      setError(err?.message || 'Unable to load the leaderboard.');
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, scope]);
 
-  useEffect(() => { loadLeaderboard(period); }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadLeaderboard(period, scope);
+  }, [period, scope, loadLeaderboard]);
 
   const loadMyRewards = useCallback(async () => {
     setCollectionLoading(true);
@@ -380,7 +430,8 @@ export default function LeaderboardPage() {
 
   const claimedForPeriod = collection.some(item =>
     item.leaderboardPeriod === period &&
-    item.periodStartDate === data?.startDate
+    item.periodStartDate === data?.startDate &&
+    (item.scope ? item.scope === scope : true)
   );
 
   const handleClaimAchievement = async () => {
@@ -389,8 +440,12 @@ export default function LeaderboardPage() {
     try {
       setClaiming(true);
       setError('');
-      const saved = await api.achievements.claim(period);
+      const saved = await api.achievements.claim(period, scope);
       await loadMyRewards();
+      window.dispatchEvent(new CustomEvent('carbontrack:notifications-changed'));
+
+      setIsCelebrationActive(true);
+      triggerCelebrationConfetti({ count: 90 });
 
       setModalAchievement({
         rank: Number(saved.rankAtClaim),
@@ -408,9 +463,48 @@ export default function LeaderboardPage() {
     }
   };
 
-  // Celebration is presentation only; it never calls the claim endpoint.
-  const handleCelebrate = () => {
-    if (achievement) setModalAchievement(achievement);
+  // Celebration toggle handler scoped strictly to the Community Leaderboard page.
+  // Activates celebration state, fires confetti, and enables hover/tap popup on the achievement card.
+  const handleCelebrate = (e) => {
+    e?.stopPropagation?.();
+    if (isCelebrationActive) {
+      // Allow user to reset/close the celebration state
+      setIsCelebrationActive(false);
+      setCardPopupOpen(false);
+      return;
+    }
+
+    setIsCelebrationActive(true);
+    setCardPopupOpen(true);
+    triggerCelebrationConfetti({
+      x: e?.clientX || window.innerWidth / 2,
+      y: e?.clientY || window.innerHeight * 0.35,
+      count: 90
+    });
+  };
+
+  const handleResetCelebration = (e) => {
+    e?.stopPropagation?.();
+    setIsCelebrationActive(false);
+    setCardPopupOpen(false);
+  };
+
+  const handleCardMouseEnter = () => {
+    if (isCelebrationActive) {
+      setCardPopupOpen(true);
+    }
+  };
+
+  const handleCardMouseLeave = () => {
+    if (isCelebrationActive) {
+      setCardPopupOpen(false);
+    }
+  };
+
+  const handleCardClick = (e) => {
+    if (!isCelebrationActive) return;
+    if (e.target.closest('button') || e.target.closest('a')) return;
+    setCardPopupOpen(prev => !prev);
   };
 
   const earnedCollection = useMemo(() => collection.map(item => ({
@@ -427,32 +521,86 @@ export default function LeaderboardPage() {
     <main className="leaderboard-page">
       <header className="lb-header">
         <div>
-          <span className="lb-eyebrow"><Users size={15} /> CARBONTRACK COMMUNITY</span>
-          <h1>Leaderboard</h1>
-          <p>Small everyday choices add up. See how the community is reducing its footprint.</p>
+          <span className="lb-eyebrow">
+            {scope === 'ORGANISATION' ? <Building2 size={15} /> : <Users size={15} />}
+            {scope === 'ORGANISATION' ? `${organisationName.toUpperCase()} LEADERBOARD` : 'CARBONTRACK COMMUNITY'}
+          </span>
+          <h1>{scope === 'ORGANISATION' ? `${organisationName} Leaderboard` : 'Leaderboard'}</h1>
+          <p>
+            {scope === 'ORGANISATION'
+              ? `Compare sustainability performance and celebrate top climate performers within ${organisationName}.`
+              : 'Small everyday choices add up. See how the community is reducing its footprint.'}
+          </p>
         </div>
-        <button type="button" className="lb-refresh" onClick={() => loadLeaderboard(period)} disabled={loading}>
+        <button type="button" className="lb-refresh" onClick={() => loadLeaderboard(period, scope)} disabled={loading}>
           <RefreshCw size={16} className={loading ? 'lb-spin' : ''} /> Refresh
         </button>
       </header>
 
-      <nav className="lb-period-tabs" aria-label="Leaderboard reporting period">
-        {PERIODS.map(item => <button key={item.value} type="button"
-          className={period === item.value ? 'active' : ''}
-          aria-pressed={period === item.value}
-          onClick={() => { setModalAchievement(null); setPeriod(item.value); }}>
-          {item.label}
-        </button>)}
-      </nav>
+      <div className="lb-controls-bar">
+        <nav className="lb-period-tabs" aria-label="Leaderboard reporting period">
+          {PERIODS.map(item => <button key={item.value} type="button"
+            className={period === item.value ? 'active' : ''}
+            aria-pressed={period === item.value}
+            onClick={() => {
+              setModalAchievement(null);
+              setIsCelebrationActive(false);
+              setCardPopupOpen(false);
+              setPeriod(item.value);
+            }}>
+            {item.label}
+          </button>)}
+        </nav>
+
+        <div className="lb-scope-tabs" role="group" aria-label="Leaderboard scope">
+          <button
+            type="button"
+            className={scope === 'OVERALL' ? 'active' : ''}
+            aria-pressed={scope === 'OVERALL'}
+            onClick={() => {
+              setModalAchievement(null);
+              setIsCelebrationActive(false);
+              setCardPopupOpen(false);
+              setScope('OVERALL');
+            }}
+          >
+            <Globe size={15} /> Overall
+          </button>
+          <button
+            type="button"
+            className={scope === 'ORGANISATION' ? 'active' : ''}
+            aria-pressed={scope === 'ORGANISATION'}
+            disabled={!hasOrganisation}
+            title={!hasOrganisation ? 'Join an organisation to view organisation leaderboards' : `View ${organisationName} Leaderboard`}
+            onClick={() => {
+              if (hasOrganisation) {
+                setModalAchievement(null);
+                setIsCelebrationActive(false);
+                setCardPopupOpen(false);
+                setScope('ORGANISATION');
+              }
+            }}
+          >
+            <Building2 size={15} /> My Organisation
+          </button>
+        </div>
+      </div>
 
       {loading && !data ? <div className="lb-state" role="status">
         <span className="lb-loader" /><strong>Loading leaderboard...</strong>
-        <p>Fetching the latest community results.</p>
+        <p>Fetching the latest {scope === 'ORGANISATION' ? `${organisationName} results` : 'community results'}.</p>
       </div> : error && !data ? <div className="lb-state lb-error" role="alert">
         <AlertCircle size={30} /><strong>Could not load leaderboard</strong><p>{error}</p>
-        <button type="button" onClick={() => loadLeaderboard(period)}>Try again</button>
+        <button type="button" onClick={() => loadLeaderboard(period, scope)}>Try again</button>
       </div> : <>
         {error && <div className="lb-inline-error" role="alert">{error}</div>}
+        {scope === 'ORGANISATION' && (
+          <div style={{ marginBottom: '16px' }}>
+            <span className="lb-scope-badge">
+              <Building2 size={14} /> Organization: {organisationName}
+            </span>
+          </div>
+        )}
         <section className="lb-stats">
           <div className="lb-stat-card">
             <span className="lb-stat-icon"><Crown size={19} /></span>
@@ -472,7 +620,31 @@ export default function LeaderboardPage() {
           <strong>{periodDescription(data, period)}</strong>
           {data?.periodDays != null && <span className="lb-period-days">({data.periodDays} {Number(data.periodDays) === 1 ? 'day' : 'days'})</span>}
         </div>
-<section className={`lb-my-rank-card ${isTopThree ? 'is-winner' : ''}`}>
+<section
+  ref={rankCardRef}
+  className={`lb-my-rank-card ${isTopThree ? 'is-winner' : ''} ${isCelebrationActive ? 'celebration-active' : ''}`}
+  onMouseEnter={handleCardMouseEnter}
+  onMouseLeave={handleCardMouseLeave}
+  onClick={handleCardClick}
+  tabIndex={isCelebrationActive ? 0 : undefined}
+  aria-expanded={isCelebrationActive ? cardPopupOpen : undefined}
+>
+  {isCelebrationActive && (
+    <div className="lb-celebration-hint">
+      <Sparkles size={14} className="lb-pulse-icon" />
+      <span>Celebration Mode Active • Hover or tap card to view achievement popup</span>
+      <button
+        type="button"
+        className="lb-hint-close-btn"
+        onClick={handleResetCelebration}
+        title="Reset celebration"
+        aria-label="Reset celebration"
+      >
+        <X size={13} />
+      </button>
+    </div>
+  )}
+
   <div className="lb-my-rank-copy">
     <span className="lb-eyebrow">YOUR CARBONTRACK POSITION</span>
 
@@ -500,11 +672,22 @@ export default function LeaderboardPage() {
       </button>
       <button
         type="button"
-        className="lb-celebrate-btn"
+        className={`lb-celebrate-btn ${isCelebrationActive ? 'active' : ''}`}
         onClick={handleCelebrate}
+        aria-pressed={isCelebrationActive}
+        title={isCelebrationActive ? 'Click to reset celebration' : 'Celebrate your achievement'}
       >
-        <Sparkles size={17} />
-        Celebrate
+        {isCelebrationActive ? (
+          <>
+            <X size={16} />
+            <span>Reset</span>
+          </>
+        ) : (
+          <>
+            <Sparkles size={17} />
+            <span>Celebrate</span>
+          </>
+        )}
       </button>
     </div>
   ) : (
@@ -514,12 +697,97 @@ export default function LeaderboardPage() {
     </span>
   )}
 
+  {/* Celebration Hover & Tap Popup — only visible when celebration is active */}
+  {isCelebrationActive && cardPopupOpen && (
+    <div
+      className="lb-celebration-popup"
+      role="dialog"
+      aria-label="Leaderboard achievement celebration"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="lb-popup-close"
+        onClick={() => setCardPopupOpen(false)}
+        aria-label="Close celebration popup"
+      >
+        <X size={16} />
+      </button>
+
+      <div className="lb-popup-header">
+        <div className="lb-popup-medal-wrap">
+          <img
+            src={PODIUM_MEDALS[myRank] || goldLeafMedal}
+            alt={`${MEDAL_NAMES[myRank] || 'Top'} Leaf Medal`}
+            className="lb-popup-medal-img"
+          />
+          <span className="lb-popup-sparkle-pill">
+            <Sparkles size={12} /> Rank #{myRank}
+          </span>
+        </div>
+        <div className="lb-popup-titles">
+          <h3>{MEDAL_NAMES[myRank] || 'Top'} Leaf Achievement</h3>
+          <span className="lb-popup-username">Congratulations, {username}!</span>
+        </div>
+      </div>
+
+      <div className="lb-popup-body">
+        <div className="lb-popup-stat-row">
+          <span className="lb-popup-stat-lbl">
+            <CalendarDays size={14} /> Reporting Period:
+          </span>
+          <strong>{periodLabel}</strong>
+        </div>
+        <div className="lb-popup-stat-row">
+          <span className="lb-popup-stat-lbl">
+            <Leaf size={14} /> Emissions Recorded:
+          </span>
+          <strong className="lb-popup-emissions">{formatKg(data?.myEmissionsKg)} CO₂e</strong>
+        </div>
+        <p className="lb-popup-desc">
+          Outstanding accomplishment! Your sustainable choices have placed you among CarbonTrack's top climate leaders this period.
+        </p>
+      </div>
+
+      <div className="lb-popup-actions">
+        <button
+          type="button"
+          className="lb-popup-view-btn"
+          onClick={() => {
+            setCardPopupOpen(false);
+            setModalAchievement(achievement || {
+              rank: myRank || 1,
+              username,
+              period,
+              periodLabel,
+              emissionsKg: Number(data?.myEmissionsKg ?? 0)
+            });
+          }}
+        >
+          <Trophy size={15} /> View Certificate
+        </button>
+        <button
+          type="button"
+          className="lb-popup-reset-btn"
+          onClick={handleResetCelebration}
+        >
+          Close & Reset
+        </button>
+      </div>
+    </div>
+  )}
+
 </section>
 
 
         {entries.length === 0 ? <div className="lb-state">
-          <Leaf size={30} /><strong>No leaderboard entries yet</strong>
-          <p>Users with activity during this reporting period will appear here.</p>
+          <Leaf size={30} />
+          <strong>{scope === 'ORGANISATION' ? 'No organisation entries yet' : 'No leaderboard entries yet'}</strong>
+          <p>
+            {scope === 'ORGANISATION'
+              ? `No activity logged by members of ${organisationName} during this reporting period.`
+              : 'Users with activity during this reporting period will appear here.'}
+          </p>
         </div> : <>
           <Podium entries={entries} />
           <section className="lb-list-section">
@@ -548,7 +816,11 @@ export default function LeaderboardPage() {
             <div className="lb-collection-grid">
               {earnedCollection.map(item => (
                 <button type="button" className="lb-collection-item" key={item.id}
-                  onClick={() => setModalAchievement(item)}
+                  onClick={() => {
+                    setIsCelebrationActive(true);
+                    triggerCelebrationConfetti({ count: 70 });
+                    setModalAchievement(item);
+                  }}
                   aria-label={`View ${MEDAL_NAMES[item.rank]} Leaf achievement`}>
                   <img src={PODIUM_MEDALS[item.rank]} alt={`${MEDAL_NAMES[item.rank]} leaf`} />
                   <div>
@@ -566,6 +838,7 @@ export default function LeaderboardPage() {
         <p className="lb-privacy"><Leaf size={14} /> Only usernames and sustainability statistics are displayed. Personal contact details are private.</p>
       </>}
 
+      <CelebrationCursor enabled={isCelebrationActive} />
       {modalAchievement && <AchievementModal achievement={modalAchievement} onClose={() => setModalAchievement(null)} />}
     </main>
   );

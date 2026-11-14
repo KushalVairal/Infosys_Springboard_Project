@@ -1,15 +1,12 @@
-
+// ActivityLogController - handles CRUD for activity logs
 package com.carbontrack.carbontrackbackend.controller;
 
 import com.carbontrack.carbontrackbackend.dto.activity.ActivityLogRequestDTO;
 import com.carbontrack.carbontrackbackend.dto.activity.ActivityLogResponseDTO;
 import com.carbontrack.carbontrackbackend.service.ActivityLogService;
-
 import jakarta.validation.Valid;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
@@ -18,25 +15,31 @@ public class ActivityLogController {
 
     private final ActivityLogService activityLogService;
 
-    public ActivityLogController(
-            ActivityLogService activityLogService) {
+    public ActivityLogController(ActivityLogService activityLogService) {
         this.activityLogService = activityLogService;
     }
 
     @PostMapping
-    public ActivityLogResponseDTO createActivity(
-            Authentication authentication,
-            @Valid @RequestBody ActivityLogRequestDTO request) {
-
-        return activityLogService.createActivity(
-                authentication.getName(), request);
+    public ActivityLogResponseDTO createActivity(Authentication authentication,
+                                                @Valid @RequestBody ActivityLogRequestDTO request) {
+        return activityLogService.createActivity(authentication.getName(), request);
     }
 
     @GetMapping("/me")
-    public List<ActivityLogResponseDTO> getMyActivities(
-            Authentication authentication) {
+    public List<ActivityLogResponseDTO> getMyActivities(Authentication authentication) {
+        return activityLogService.getMyActivities(authentication.getName());
+    }
 
-        return activityLogService.getMyActivities(
-                authentication.getName());
+    @PutMapping("/{id}")
+    public ActivityLogResponseDTO updateActivity(Authentication authentication,
+                                                @PathVariable Long id,
+                                                @Valid @RequestBody ActivityLogRequestDTO request) {
+        return activityLogService.updateActivity(authentication.getName(), id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteActivity(Authentication authentication,
+                               @PathVariable Long id) {
+        activityLogService.deleteActivity(authentication.getName(), id);
     }
 }

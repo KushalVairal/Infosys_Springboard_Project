@@ -18,6 +18,9 @@ public class UserProfileResponseDTO {
     private boolean goalVisibility;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long organisationId;
+    private String organisationName;
+    private String avatarSeed;
 
     public UserProfileResponseDTO(
             Long userId,
@@ -32,6 +35,43 @@ public class UserProfileResponseDTO {
             boolean goalVisibility,
             LocalDateTime createdAt,
             LocalDateTime updatedAt) {
+        this(userId, username, fullName, email, phoneNumber, location, profileImageUrl, role, preferredUnit, goalVisibility, createdAt, updatedAt, null, null, null);
+    }
+
+    public UserProfileResponseDTO(
+            Long userId,
+            String username,
+            String fullName,
+            String email,
+            String phoneNumber,
+            String location,
+            String profileImageUrl,
+            String role,
+            String preferredUnit,
+            boolean goalVisibility,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            Long organisationId,
+            String organisationName) {
+        this(userId, username, fullName, email, phoneNumber, location, profileImageUrl, role, preferredUnit, goalVisibility, createdAt, updatedAt, organisationId, organisationName, null);
+    }
+
+    public UserProfileResponseDTO(
+            Long userId,
+            String username,
+            String fullName,
+            String email,
+            String phoneNumber,
+            String location,
+            String profileImageUrl,
+            String role,
+            String preferredUnit,
+            boolean goalVisibility,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            Long organisationId,
+            String organisationName,
+            String avatarSeed) {
 
         this.userId = userId;
         this.username = username;
@@ -45,6 +85,9 @@ public class UserProfileResponseDTO {
         this.goalVisibility = goalVisibility;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.organisationId = organisationId;
+        this.organisationName = organisationName;
+        this.avatarSeed = avatarSeed;
     }
 
     public Long getUserId() { return userId; }
@@ -67,6 +110,22 @@ public class UserProfileResponseDTO {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Long getOrganisationId() {
+        return organisationId;
+    }
+
+    public String getOrganisationName() {
+        return organisationName;
+    }
+
+    public String getAvatarSeed() {
+        return avatarSeed;
+    }
+
+    public void setAvatarSeed(String avatarSeed) {
+        this.avatarSeed = avatarSeed;
     }
 }
 

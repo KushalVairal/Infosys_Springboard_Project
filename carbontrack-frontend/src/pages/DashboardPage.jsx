@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { CategoryBadge, EmissionBadge } from '../components/StatusBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import AnimatedCounter from '../components/animations/AnimatedCounter';
+import ActivityHeatmap from '../components/analytics/ActivityHeatmap';
 import {
   PlusCircle,
   Activity,
@@ -19,6 +21,8 @@ import {
 import {
   AreaChart,
   Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -40,39 +44,41 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [activityData, goalData, recData] = await Promise.all([
-          api.activities.getMyActivities().catch(() => []),
-          api.goals.getMyGoals().catch(() => []),
-          api.recommendations.getWeekly().catch(() => null)
-        ]);
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [activityData, goalData, recData] = await Promise.all([
+        api.activities.getMyActivities().catch(() => []),
+        api.goals.getMyGoals().catch(() => []),
+        api.recommendations.getWeekly().catch(() => null)
+      ]);
 
-        if (isMounted) {
-          setActivities(Array.isArray(activityData) ? activityData : []);
-          setGoals(Array.isArray(goalData) ? goalData : []);
-          if (recData && Array.isArray(recData.recommendations)) {
-            setRecommendations(recData.recommendations);
-            setRecPeriodDays(recData.periodDays || 30);
-          } else {
-            setRecommendations([]);
-          }
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) setError(err.message || 'Unable to load dashboard data');
-      } finally {
-        if (isMounted) setLoading(false);
+      setActivities(Array.isArray(activityData) ? activityData : []);
+      setGoals(Array.isArray(goalData) ? goalData : []);
+      if (recData && Array.isArray(recData.recommendations)) {
+        setRecommendations(recData.recommendations);
+        setRecPeriodDays(recData.periodDays || 30);
+      } else {
+        setRecommendations([]);
       }
+      setError(null);
+    } catch (err) {
+      setError(err.message || 'Unable to load dashboard data');
+    } finally {
+      setLoading(false);
     }
-    loadData();
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    loadData();
+    const handleActivityChanged = () => {
+      loadData();
+    };
+    window.addEventListener('carbontrack:activity-changed', handleActivityChanged);
+    return () => {
+      window.removeEventListener('carbontrack:activity-changed', handleActivityChanged);
+    };
+  }, [loadData]);
 
   const activeGoal = useMemo(() => {
     return goals.find((g) => g.status === 'ACTIVE') || goals[0] || null;
@@ -142,6 +148,81 @@ export default function DashboardPage() {
       }));
   }, [activities]);
 
+  // Today's footprint (use local calendar dates rather than UTC date strings).
+  const todayTotalKg = useMemo(() => {
+    const today = new Date();
+    const todayKey = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0')
+    ].join('-');
+
+    return activities.reduce((sum, act) => {
+      const dateKey = String(act.logDate || '').slice(0, 10);
+      return dateKey === todayKey ? sum + (Number(act.co2eKg) || 0) : sum;
+    }, 0);
+  }, [activities]);
+
+  // Compare Monday-Sunday of this week with the previous week.
+  // Missing dates are included with zero values.
+  const weeklyComparison = useMemo(() => {
+    const now = new Date();
+    const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const daysSinceMonday = (currentMonday.getDay() + 6) % 7;
+    currentMonday.setDate(currentMonday.getDate() - daysSinceMonday);
+
+    const previousMonday = new Date(currentMonday);
+    previousMonday.setDate(previousMonday.getDate() - 7);
+
+    const dateKey = (date) => [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0')
+    ].join('-');
+
+    const currentTotals = {};
+    const previousTotals = {};
+
+    for (let i = 0; i < 7; i += 1) {
+      const currentDate = new Date(currentMonday);
+      currentDate.setDate(currentMonday.getDate() + i);
+      currentTotals[dateKey(currentDate)] = 0;
+
+      const previousDate = new Date(previousMonday);
+      previousDate.setDate(previousMonday.getDate() + i);
+      previousTotals[dateKey(previousDate)] = 0;
+    }
+
+    activities.forEach((act) => {
+      const key = String(act.logDate || '').slice(0, 10);
+      if (Object.prototype.hasOwnProperty.call(currentTotals, key)) {
+        currentTotals[key] += Number(act.co2eKg) || 0;
+      }
+      if (Object.prototype.hasOwnProperty.call(previousTotals, key)) {
+        previousTotals[key] += Number(act.co2eKg) || 0;
+      }
+    });
+
+    return Array.from({ length: 7 }, (_, index) => {
+      const currentDate = new Date(currentMonday);
+      currentDate.setDate(currentMonday.getDate() + index);
+      const previousDate = new Date(previousMonday);
+      previousDate.setDate(previousMonday.getDate() + index);
+      return {
+        day: currentDate.toLocaleDateString(undefined, { weekday: 'short' }),
+        current: Number(currentTotals[dateKey(currentDate)].toFixed(2)),
+        previous: Number(previousTotals[dateKey(previousDate)].toFixed(2))
+      };
+    });
+  }, [activities]);
+
+  const weeklyChangePct = useMemo(() => {
+    const currentTotal = weeklyComparison.reduce((sum, day) => sum + day.current, 0);
+    const previousTotal = weeklyComparison.reduce((sum, day) => sum + day.previous, 0);
+    if (previousTotal === 0) return null;
+    return ((currentTotal - previousTotal) / previousTotal) * 100;
+  }, [weeklyComparison]);
+
   // Category breakdown for donut chart
   const categoryChartData = useMemo(() => {
     return Object.entries(metrics.catMap)
@@ -206,11 +287,35 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="metric-body">
-            <span className="metric-value">{metrics.displayTotal}</span>
+            <AnimatedCounter
+              value={Number(metrics.displayTotal)}
+              decimals={isTonnes ? 3 : 2}
+              className="metric-value"
+            />
             <span className="metric-unit">{metrics.unitLabel}</span>
           </div>
           <div className="metric-footer">
             <span className="metric-subtext">Across {metrics.activityCount} recorded actions</span>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-header">
+            <span className="metric-title">Today's Footprint</span>
+            <span className="metric-icon-bubble">
+              <Calendar size={20} color="var(--forest-primary)" />
+            </span>
+          </div>
+          <div className="metric-body">
+            <AnimatedCounter
+              value={isTonnes ? Number(todayTotalKg / 1000) : Number(todayTotalKg)}
+              decimals={isTonnes ? 3 : 2}
+              className="metric-value"
+            />
+            <span className="metric-unit">{isTonnes ? 'Tonnes CO₂e' : 'kg CO₂e'}</span>
+          </div>
+          <div className="metric-footer">
+            <span className="metric-subtext">Emissions recorded today</span>
           </div>
         </div>
 
@@ -222,7 +327,11 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="metric-body">
-            <span className="metric-value">{metrics.activityCount}</span>
+            <AnimatedCounter
+              value={metrics.activityCount}
+              decimals={0}
+              className="metric-value"
+            />
             <span className="metric-unit">events</span>
           </div>
           <div className="metric-footer">
@@ -257,7 +366,12 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="metric-body">
-            <span className="metric-value">{goalPercentage}%</span>
+            <AnimatedCounter
+              value={goalPercentage}
+              decimals={0}
+              suffix="%"
+              className="metric-value"
+            />
             <span className="metric-unit">
               of {isTonnes ? (targetBudgetKg / 1000).toFixed(2) : targetBudgetKg.toFixed(0)} {isTonnes ? 't' : 'kg'} budget
             </span>
@@ -272,6 +386,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Analytics 9 - Activity Contribution Heatmap */}
+      <ActivityHeatmap
+        activities={activities}
+        preferredUnit={preferredUnit}
+        onRefresh={loadData}
+      />
 
       {/* Charts Section */}
       <div className="dashboard-charts-grid">
@@ -408,6 +529,76 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Weekly Comparison Chart */}
+      <div className="dashboard-card weekly-comparison-card">
+        <div className="card-header-clean">
+          <div>
+            <h2 className="card-heading">Weekly Comparison</h2>
+            <p className="card-subheading">
+              Current week compared with the previous week (Monday–Sunday)
+            </p>
+            {weeklyChangePct !== null && (
+              <p className="card-subheading">
+                {weeklyChangePct > 0 ? '+' : ''}
+                {weeklyChangePct.toFixed(1)}% vs last week
+              </p>
+            )}
+          </div>
+          <div className="chart-legend-indicator">
+            <span className="legend-dot" />
+            <span>Current week</span>
+            <span className="legend-dot" style={{ backgroundColor: '#FFBF00' }} />
+            <span>Previous week</span>
+          </div>
+        </div>
+        <div className="chart-container-box">
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={weeklyComparison} margin={{ top: 10, right: 20, left: 15, bottom: 0 }}>
+              <XAxis
+                dataKey="day"
+                stroke={isDark ? '#A3BBAA' : '#556B5B'}
+                fontSize={12}
+                tickLine={false}
+                axisLine={{ stroke: isDark ? '#273B2F' : '#E5F0DF' }}
+              />
+              <YAxis
+                stroke={isDark ? '#A3BBAA' : '#556B5B'}
+                fontSize={12}
+                tickLine={false}
+                width={45}
+                axisLine={{ stroke: isDark ? '#273B2F' : '#E5F0DF' }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: isDark ? '#17241D' : '#FFFFFF',
+                  borderRadius: '12px',
+                  border: isDark ? '1px solid #273B2F' : '1px solid #D7E6CE',
+                  color: isDark ? '#EDF5EE' : '#1D2E24',
+                  boxShadow: 'var(--shadow-md)'
+                }}
+                formatter={(value) => [`${value} kg CO₂e`, 'Emissions']}
+              />
+              <Line
+                type="monotone"
+                dataKey="current"
+                name="Current week"
+                stroke={isDark ? '#3DA868' : '#246B43'}
+                strokeWidth={2.5}
+                dot={{ r: 3 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="previous"
+                name="Previous week"
+                stroke="#FFBF00"
+                strokeWidth={2.5}
+                dot={{ r: 3 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

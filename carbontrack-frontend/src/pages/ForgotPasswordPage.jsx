@@ -3,8 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import api from '../api/client';
 import { LeafIcon } from '../components/NatureIcons';
-import { Mail, KeyRound, Lock, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft, Sun, Moon } from 'lucide-react';
+import { Mail, KeyRound, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft, Sun, Moon } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PasswordInput from '../components/PasswordInput';
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -248,6 +249,15 @@ export default function ForgotPasswordPage() {
               <ArrowLeft size={16} />
               <span>Change Email</span>
             </button>
+
+            <div style={{ marginTop: '12px', textAlign: 'center' }}>
+              <Link
+                to={`/reset-password?email=${encodeURIComponent(email.trim())}`}
+                style={{ fontSize: '0.85rem', color: 'var(--forest-primary, #2e7d32)', textDecoration: 'underline' }}
+              >
+                Go to Dedicated Reset Password Page
+              </Link>
+            </div>
           </form>
         )}
 
@@ -256,39 +266,31 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleResetPassword} className="auth-form" noValidate>
             <div className="form-group">
               <label htmlFor="new-pass">New Password</label>
-              <div className="input-with-icon">
-                <span className="input-icon">
-                  <Lock size={18} />
-                </span>
-                <input
-                  id="new-pass"
-                  type="password"
-                  placeholder="At least 8 characters"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
+              <PasswordInput
+                id="new-pass"
+                name="newPassword"
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={isLoading}
+                required
+              />
               <span className="field-hint">8 to 72 characters</span>
             </div>
 
             <div className="form-group">
               <label htmlFor="confirm-new-pass">Confirm New Password</label>
-              <div className="input-with-icon">
-                <span className="input-icon">
-                  <Lock size={18} />
-                </span>
-                <input
-                  id="confirm-new-pass"
-                  type="password"
-                  placeholder="Re-enter your new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
+              <PasswordInput
+                id="confirm-new-pass"
+                name="confirmPassword"
+                autoComplete="new-password"
+                placeholder="Re-enter your new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+                required
+              />
             </div>
 
             <button

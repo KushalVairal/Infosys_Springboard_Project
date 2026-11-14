@@ -12,5 +12,19 @@ public record AchievementResponseDTO(
         BigDecimal emissionsKgAtClaim,
         LocalDate periodStartDate,
         LocalDate periodEndDate,
-        LocalDateTime claimedAt
-) {}
+        LocalDateTime claimedAt,
+        String scope
+) {
+    public AchievementResponseDTO(
+            Long id,
+            String achievementType,
+            String leaderboardPeriod,
+            Integer rankAtClaim,
+            BigDecimal emissionsKgAtClaim,
+            LocalDate periodStartDate,
+            LocalDate periodEndDate,
+            LocalDateTime claimedAt
+    ) {
+        this(id, achievementType, leaderboardPeriod, rankAtClaim, emissionsKgAtClaim, periodStartDate, periodEndDate, claimedAt, "OVERALL");
+    }
+}

@@ -3,8 +3,12 @@ package com.carbontrack.carbontrackbackend.repository;
 import com.carbontrack.carbontrackbackend.dto.analytics.FootprintAggregateDTO;
 import com.carbontrack.carbontrackbackend.dto.benchmark.CategoryEmissionAggregateDTO;
 import com.carbontrack.carbontrackbackend.dto.benchmark.UserEmissionAggregateDTO;
+import com.carbontrack.carbontrackbackend.dto.leaderboard.LeaderboardActivityAggregateDTO;
 import com.carbontrack.carbontrackbackend.dto.leaderboard.LeaderboardCategoryAggregateDTO;
 import com.carbontrack.carbontrackbackend.dto.leaderboard.LeaderboardUserAggregateDTO;
+import com.carbontrack.carbontrackbackend.dto.organisation.OrganisationCategoryAggregateDTO;
+import com.carbontrack.carbontrackbackend.dto.organisation.OrganisationEmployeeAggregateDTO;
+import com.carbontrack.carbontrackbackend.dto.organisation.OrganisationMonthlyAggregateDTO;
 import com.carbontrack.carbontrackbackend.entity.ActivityLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -12,6 +16,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
@@ -52,6 +57,20 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
         """)
     BigDecimal sumCo2eKgByUserIdAndLogDateBetween(
             @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+        SELECT COALESCE(SUM(a.co2eKg), 0)
+        FROM ActivityLog a
+        WHERE a.user.id = :userId
+          AND a.logDate BETWEEN :startDate AND :endDate
+          AND (UPPER(TRIM(a.category)) IN :categories OR UPPER(TRIM(a.activityType)) IN :activityTypes)
+        """)
+    BigDecimal sumCo2eKgByUserIdAndCategoriesOrActivityTypesAndLogDateBetween(
+            @Param("userId") Long userId,
+            @Param("categories") Collection<String> categories,
+            @Param("activityTypes") Collection<String> activityTypes,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
@@ -120,6 +139,21 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
             a.user.id, a.user.username, SUM(a.co2eKg), COUNT(a.id)
         )
         FROM ActivityLog a
+        WHERE a.logDate BETWEEN :startDate AND :endDate
+          AND a.user.organisation.id = :orgId
+        GROUP BY a.user.id, a.user.username
+        ORDER BY SUM(a.co2eKg) ASC, a.user.username ASC
+        """)
+    List<LeaderboardUserAggregateDTO> findLeaderboardTotalsByOrganisationBetween(
+            @Param("orgId") Long orgId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+        SELECT new com.carbontrack.carbontrackbackend.dto.leaderboard.LeaderboardUserAggregateDTO(
+            a.user.id, a.user.username, SUM(a.co2eKg), COUNT(a.id)
+        )
+        FROM ActivityLog a
         GROUP BY a.user.id, a.user.username
         ORDER BY SUM(a.co2eKg) ASC, a.user.username ASC
         """)
@@ -149,4 +183,97 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
         """)
     List<LeaderboardCategoryAggregateDTO> findLeaderboardCategoryTotalsAllTime(
             @Param("userIds") List<Long> userIds);
+
+    @Query("""
+        SELECT new com.carbontrack.carbontrackbackend.dto.leaderboard.LeaderboardActivityAggregateDTO(
+            a.user.id, UPPER(TRIM(a.activityType)), SUM(a.co2eKg)
+        )
+        FROM ActivityLog a
+        WHERE a.user.id IN :userIds
+          AND a.logDate BETWEEN :startDate AND :endDate
+        GROUP BY a.user.id, UPPER(TRIM(a.activityType))
+        ORDER BY SUM(a.co2eKg) DESC
+        """)
+    List<LeaderboardActivityAggregateDTO> findLeaderboardActivityTotalsBetween(
+            @Param("userIds") List<Long> userIds,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+        SELECT COALESCE(SUM(a.co2eKg), 0)
+        FROM ActivityLog a
+        WHERE a.user.organisation.id = :orgId
+          AND a.logDate BETWEEN :startDate AND :endDate
+        """)
+    BigDecimal sumCo2eKgByOrganisationIdAndLogDateBetween(
+            @Param("orgId") Long orgId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+        SELECT COUNT(DISTINCT a.user.id)
+        FROM ActivityLog a
+        WHERE a.user.organisation.id = :orgId
+          AND a.logDate BETWEEN :startDate AND :endDate
+        """)
+    long countDistinctActiveEmployeesByOrganisationIdBetween(
+            @Param("orgId") Long orgId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+        SELECT COUNT(a.id)
+        FROM ActivityLog a
+        WHERE a.user.organisation.id = :orgId
+          AND a.logDate BETWEEN :startDate AND :endDate
+        """)
+    long countActivitiesByOrganisationIdBetween(
+            @Param("orgId") Long orgId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+        SELECT new com.carbontrack.carbontrackbackend.dto.organisation.OrganisationCategoryAggregateDTO(
+            UPPER(TRIM(a.category)), SUM(a.co2eKg), COUNT(a.id)
+        )
+        FROM ActivityLog a
+        WHERE a.user.organisation.id = :orgId
+          AND a.logDate BETWEEN :startDate AND :endDate
+        GROUP BY UPPER(TRIM(a.category))
+        ORDER BY SUM(a.co2eKg) DESC
+        """)
+    List<OrganisationCategoryAggregateDTO> findOrganisationCategoryTotalsBetween(
+            @Param("orgId") Long orgId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+        SELECT new com.carbontrack.carbontrackbackend.dto.organisation.OrganisationMonthlyAggregateDTO(
+            YEAR(a.logDate), MONTH(a.logDate), SUM(a.co2eKg), COUNT(DISTINCT a.user.id), COUNT(a.id)
+        )
+        FROM ActivityLog a
+        WHERE a.user.organisation.id = :orgId
+          AND a.logDate BETWEEN :startDate AND :endDate
+        GROUP BY YEAR(a.logDate), MONTH(a.logDate)
+        ORDER BY YEAR(a.logDate) ASC, MONTH(a.logDate) ASC
+        """)
+    List<OrganisationMonthlyAggregateDTO> findOrganisationMonthlyTotalsBetween(
+            @Param("orgId") Long orgId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+        SELECT new com.carbontrack.carbontrackbackend.dto.organisation.OrganisationEmployeeAggregateDTO(
+            a.user.id, a.user.username, a.user.fullName, SUM(a.co2eKg), COUNT(a.id)
+        )
+        FROM ActivityLog a
+        WHERE a.user.organisation.id = :orgId
+          AND a.logDate BETWEEN :startDate AND :endDate
+        GROUP BY a.user.id, a.user.username, a.user.fullName
+        ORDER BY SUM(a.co2eKg) DESC, a.user.username ASC
+        """)
+    List<OrganisationEmployeeAggregateDTO> findOrganisationEmployeeTotalsBetween(
+            @Param("orgId") Long orgId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

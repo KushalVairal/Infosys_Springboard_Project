@@ -1,0 +1,85 @@
+/* ==========================================================================
+   FallingLeaves — Gentle Falling Leaf Animation for Auth Pages
+   ========================================================================== */
+
+.falling-leaves-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Vertical Falling Track */
+.falling-leaf-track {
+  position: absolute;
+  top: -12%;
+  will-change: transform;
+  animation-name: leafFallDown;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Horizontal Sway & Organic 3D Tumble */
+.falling-leaf-sway {
+  will-change: transform;
+  animation-name: leafSwayAndTumble;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  display: inline-block;
+}
+
+/* Leaf SVG Colors: Soft Natural Forest Green in Light Mode */
+.falling-leaf-svg {
+  color: #48724d;
+  filter: drop-shadow(0 2px 5px rgba(36, 75, 53, 0.15));
+  opacity: 0.65;
+  transition: opacity 0.3s ease, color 0.3s ease;
+}
+
+/* Leaf SVG Colors: Luminous Emerald Glow in Dark Mode */
+[data-theme="dark"] .falling-leaf-svg {
+  color: #4ade80;
+  filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.35));
+  opacity: 0.55;
+}
+
+@keyframes leafFallDown {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(118vh);
+    opacity: 0;
+  }
+}
+
+@keyframes leafSwayAndTumble {
+  0% {
+    transform: translateX(-24px) rotate(-14deg) rotateY(0deg);
+  }
+  50% {
+    transform: translateX(18px) rotate(18deg) rotateY(180deg);
+  }
+  100% {
+    transform: translateX(-16px) rotate(-22deg) rotateY(360deg);
+  }
+}
+
+/* Prefers Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .falling-leaf-track,
+  .falling-leaf-sway {
+    animation: none !important;
+    display: none;
+  }
+}
+

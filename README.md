@@ -56,6 +56,7 @@ forgot-password OTP is always `123456`.
    - `DB_PASSWORD`: Your local MySQL root password.
    - `JWT_SECRET`: A long random secret key (minimum 32 characters / 256 bits).
    - `MAIL_USERNAME` & `MAIL_PASSWORD`: Your Gmail address and 16-character [Google App Password](https://myaccount.google.com/apppasswords) for password reset OTP emails.
+   - `GROQ_API_KEY`: Your Groq API key for the in-app AI assistant. The key stays in the backend environment and is never sent to the browser. Optionally set `GROQ_MODEL` to use a different Groq-supported model.
    *(Note: `.env` is git-ignored and will never be committed to source control).*
 4. Run both with one command from the project root:
    ```bash
@@ -96,6 +97,7 @@ Base URL `http://localhost:8080`. Protected endpoints need `Authorization: Beare
 | GET / PUT | `/api/users/me` | Read / update profile |
 | POST | `/api/activities` | Create activity log |
 | GET | `/api/activities/me` | List the user's activity logs |
+| POST | `/api/assistant/chat` | Send a chat conversation to the Groq AI assistant (authenticated) |
 | GET | `/api/test/protected` | Auth check |
 
 The frontend first calls `GET /api/activities` (with filters/paging) and automatically falls back

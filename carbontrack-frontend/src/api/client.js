@@ -86,11 +86,16 @@ async function request(endpoint, options = {}) {
 
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem('carbontrack_token');
-      localStorage.removeItem('ct_token');
-      localStorage.removeItem('carbontrack_user');
-      localStorage.removeItem('ct_user');
-      window.dispatchEvent(new CustomEvent('carbontrack:unauthorized'));
+      // Do not wipe credentials or redirect if 401 occurs on login attempt or on restricted admin sub-routes
+      const isAuthEndpoint = typeof endpoint === 'string' && endpoint.startsWith('/api/auth');
+      const isRestrictedAdminEndpoint = typeof endpoint === 'string' && endpoint.startsWith('/api/organisation');
+      if (!isAuthEndpoint && !isRestrictedAdminEndpoint) {
+        localStorage.removeItem('carbontrack_token');
+        localStorage.removeItem('ct_token');
+        localStorage.removeItem('carbontrack_user');
+        localStorage.removeItem('ct_user');
+        window.dispatchEvent(new CustomEvent('carbontrack:unauthorized'));
+      }
     }
 
     let message = 'An unexpected error occurred';
@@ -117,6 +122,20 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
+  // Emission factor endpoints
+  emissionFactors: {
+    /**
+     * Fetch emission factors optionally filtered by activity type.
+     * Returns an array of EmissionFactorResponseDTO.
+     */
+    get: (activityType = null) => {
+      const query = activityType ? `?activityType=${encodeURIComponent(activityType)}` : '';
+      return request(`/api/emission-factors${query}`, { method: 'GET' });
+    },
+    getAll: () => request('/api/emission-factors', { method: 'GET' }),
+    getByActivityType: (activityType) =>
+      request(`/api/emission-factors?activityType=${encodeURIComponent(activityType)}`, { method: 'GET' })
+  },
   // System / Health
   health: () => request('/api/health', { method: 'GET' }),
   testProtected: () => request('/api/test/protected', { method: 'GET' }),
@@ -164,6 +183,7 @@ export const api = {
       phoneNumber,
       location,
       profileImageUrl,
+      avatarSeed,
       preferredUnit,
       goalVisibility
     }) =>
@@ -175,6 +195,7 @@ export const api = {
           phoneNumber: phoneNumber || '',
           location: location || '',
           profileImageUrl: profileImageUrl || '',
+          avatarSeed: avatarSeed !== undefined ? (avatarSeed || '') : undefined,
           preferredUnit: preferredUnit || 'KG_CO2E',
           goalVisibility: goalVisibility ?? true
         })
@@ -323,24 +344,14 @@ export const api = {
 
     getProjection: (id) => request(`/api/goals/${id}/projection`, { method: 'GET' })
   },
-  // Emission Factor endpoints
-  emissionFactors: {
-    getAll: () =>
-      request('/api/emission-factors', { method: 'GET' }),
-
-    getByActivityType: (activityType) =>
-      request(
-        `/api/emission-factors?activityType=${encodeURIComponent(activityType)}`,
-        { method: 'GET' }
-      )
-  },
 
   // Activity Log endpoints
   activities: {
     getMyActivities: () => request('/api/activities/me', { method: 'GET' }),
+    getMine: () => request('/api/activities/me', { method: 'GET' }),
 
-    create: ({ category, activityType, quantity, unit, logDate }) =>
-      request('/api/activities', {
+    create: async ({ category, activityType, quantity, unit, logDate }) => {
+      const res = await request('/api/activities', {
         method: 'POST',
         body: JSON.stringify({
           category,
@@ -349,6 +360,36 @@ export const api = {
           unit,
           logDate
         })
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('carbontrack:activity-changed', { detail: { action: 'create', data: res } }));
+      }
+      return res;
+    },
+
+    update: async (id, payload) => {
+      const res = await request(`/api/activities/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('carbontrack:activity-changed', { detail: { action: 'update', data: res } }));
+      }
+      return res;
+    },
+
+    delete: async (id) => {
+      const res = await request(`/api/activities/${id}`, { method: 'DELETE' });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('carbontrack:activity-changed', { detail: { action: 'delete', id } }));
+      }
+      return res;
+    }
+  },
+
+  // AI assistant
+  assistant: {
+    chat: (messages, context = null) =>
+      request('/api/assistant/chat', {
+        method: 'POST',
+        body: JSON.stringify({ messages, context })
       })
   },
 
@@ -364,9 +405,30 @@ export const api = {
       request(`/api/analytics/monthly?startDate=${startDate}&endDate=${endDate}`, { method: 'GET' })
   },
 
-  // Personalised Recommendations endpoints (Task 4)
+  // Personalised Recommendations endpoints
   recommendations: {
-    getWeekly: () => request('/api/recommendations/weekly', { method: 'GET' })
+    getWeekly: () => request('/api/recommendations/weekly', { method: 'GET' }),
+    getAll: (category = null, status = 'ACTIVE') => {
+      const params = new URLSearchParams();
+      if (category && category !== 'ALL' && category !== 'ALL ACTIVE') {
+        params.append('category', category);
+      }
+      if (status) params.append('status', status);
+      const query = params.toString();
+      return request(`/api/recommendations${query ? `?${query}` : ''}`, { method: 'GET' });
+    },
+    startAction: (id, payload = {}) =>
+      request(`/api/recommendations/${id}/start-action`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }),
+    updateStatus: (id, status) =>
+      request(`/api/recommendations/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      }),
+    getCategoryOverview: () =>
+      request('/api/recommendations/categories/overview', { method: 'GET' })
   },
 
   // Peer Benchmarking endpoints (Task 7)
@@ -378,29 +440,161 @@ export const api = {
   badges: {
     getMyBadges: () => request('/api/badges/me', { method: 'GET' })
   },
-    // Leaderboard Achievement Rewards
+
+  // Leaderboard Achievement Rewards
   achievements: {
     getMyAchievements: () =>
       request('/api/achievements/me', { method: 'GET' }),
 
-    claim: (period) =>
-      request(
-        `/api/achievements/claim?period=${encodeURIComponent(period)}`,
+    claim: (period, scope = 'OVERALL') => {
+      const params = new URLSearchParams();
+      if (period) params.set('period', period);
+      if (scope) params.set('scope', scope);
+      return request(
+        `/api/achievements/claim?${params.toString()}`,
         { method: 'POST' }
-      )
+      );
+    }
+  },
+
+  // Notification endpoints
+  notifications: {
+    getMyNotifications: () => request('/api/notifications', { method: 'GET' }),
+    getUnreadCount: () => request('/api/notifications/unread-count', { method: 'GET' }),
+    markAsRead: (id) => request(`/api/notifications/${id}/read`, { method: 'PATCH' }),
+    markAllAsRead: () => request('/api/notifications/read-all', { method: 'PATCH' }),
+    delete: (id) => request(`/api/notifications/${id}`, { method: 'DELETE' }),
+    getPreferences: () => request('/api/notifications/preferences', { method: 'GET' }),
+    updatePreferences: (prefs) =>
+      request('/api/notifications/preferences', {
+        method: 'PUT',
+        body: JSON.stringify(prefs)
+      })
   },
 
   // Community Leaderboard endpoint
   leaderboard: {
-    getLeaderboard: (period = 'MONTHLY') =>
-      request(`/api/leaderboard?period=${encodeURIComponent(period)}`, {
+    getLeaderboard: (period = 'MONTHLY', scope = 'OVERALL') => {
+      const params = new URLSearchParams();
+      params.set('period', period);
+      if (scope) params.set('scope', scope);
+      return request(`/api/leaderboard?${params.toString()}`, {
         method: 'GET'
-      })
+      });
+    }
+  },
+
+  // Organisation Dashboard & Members endpoints
+  organisation: {
+    getSummary: (startDate, endDate) => {
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      return request(`/api/organisation/dashboard/summary${query}`, { method: 'GET' });
+    },
+
+    getCategories: (startDate, endDate) => {
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      return request(`/api/organisation/dashboard/categories${query}`, { method: 'GET' });
+    },
+
+    getMonthlyTrends: () =>
+      request('/api/organisation/dashboard/monthly-trends', { method: 'GET' }),
+
+    getEmployees: (startDate, endDate) => {
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      return request(`/api/organisation/dashboard/employees${query}`, { method: 'GET' });
+    },
+
+    getMembers: () =>
+      request('/api/organisation/members', { method: 'GET' }),
+
+    removeMember: (memberId) =>
+      request(`/api/organisation/members/${memberId}`, { method: 'DELETE' }),
+
+    getInvitations: () =>
+      request('/api/organisation/invitations', { method: 'GET' }),
+
+    inviteMember: (email) =>
+      request('/api/organisation/invitations', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      }),
+
+    cancelInvitation: (id) =>
+      request(`/api/organisation/invitations/${id}`, { method: 'DELETE' }),
+
+    acceptInvitation: (id) =>
+      request(`/api/invitations/${id}/accept`, { method: 'POST' }),
+
+    rejectInvitation: (id) =>
+      request(`/api/invitations/${id}/reject`, { method: 'POST' }),
+
+    getPublicOrganisations: () =>
+      request('/api/organisations/public', { method: 'GET' }),
+
+    createOrganisation: (data) =>
+      request('/api/organisations', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    getDetails: () =>
+      request('/api/organisation/details', { method: 'GET' }),
+
+    updateDetails: (data) =>
+      request('/api/organisation/details', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      }),
+
+    joinOrganisation: (id) =>
+      request(`/api/organisations/${id}/join`, { method: 'POST' }),
+
+    leaveOrganisation: () =>
+      request('/api/organisation/leave', { method: 'POST' }),
+
+    transferOwnership: (newOwnerUserId) =>
+      request('/api/organisation/transfer-ownership', {
+        method: 'POST',
+        body: JSON.stringify({ newOwnerUserId })
+      }),
+
+    deleteOrganisation: () =>
+      request('/api/organisation', { method: 'DELETE' })
+  },
+
+  // Generic HTTP methods compatible with Axios-style callers
+  get: async (endpoint, options = {}) => {
+    const data = await request(endpoint, {
+      method: 'GET',
+      ...options
+    });
+    return { data };
+  },
+
+  post: async (endpoint, body, options = {}) => {
+    const isFormData =
+      typeof FormData !== 'undefined' && body instanceof FormData;
+
+    const data = await request(endpoint, {
+      method: 'POST',
+      body: isFormData
+        ? body
+        : (body !== undefined ? JSON.stringify(body) : undefined),
+      ...options
+    });
+
+    return { data };
   }
-
-
 };
 
 export const apiClient = api;
 export default api;
-

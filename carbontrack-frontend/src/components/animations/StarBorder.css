@@ -1,0 +1,178 @@
+/* StarBorder Animation Styles - CarbonTrack Theme */
+:root {
+  --star-glow-color: #22c55e;
+}
+
+[data-theme="dark"] {
+  --star-glow-color: #4ade80;
+}
+
+.star-border-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+  vertical-align: middle;
+  transform: translateZ(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Rotating Star Trail using Conic Gradient */
+.star-border-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 250%;
+  height: 250%;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(0deg);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 280deg,
+    var(--star-color, #4ade80) 330deg,
+    rgba(255, 255, 255, 0.9) 355deg,
+    transparent 360deg
+  );
+  animation: star-border-rotate var(--star-duration, 4s) linear infinite;
+  opacity: var(--star-glow, 0.65);
+  filter: drop-shadow(0 0 6px var(--star-color, #4ade80));
+  z-index: 0;
+}
+
+.star-border-spinner.star-2 {
+  animation-delay: calc(var(--star-duration, 4s) / -2);
+}
+
+@keyframes star-border-rotate {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Content Container Surface */
+.star-border-inner {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: var(--forest-primary, #1e4d34);
+  color: #ffffff !important;
+  font-weight: 600;
+  padding: inherit;
+  transition: background-color 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+}
+
+/* Explicit Primary Button Theming for StarBorder */
+.star-border-container.btn-primary .star-border-inner,
+.star-border-container.hero-btn-pulse .star-border-inner,
+.star-border-container.nav-cta-btn .star-border-inner {
+  background-color: #1e4d34;
+  color: #ffffff !important;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.star-border-container.btn-primary .star-border-inner span,
+.star-border-container.btn-primary .star-border-inner svg,
+.star-border-container.hero-btn-pulse .star-border-inner span,
+.star-border-container.hero-btn-pulse .star-border-inner svg,
+.star-border-container.nav-cta-btn .star-border-inner span,
+.star-border-container.nav-cta-btn .star-border-inner svg {
+  color: #ffffff !important;
+  stroke: #ffffff;
+  fill: none;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Hover: Slightly darker shade with smooth transitions */
+.star-border-container.btn-primary:hover .star-border-inner,
+.star-border-container.hero-btn-pulse:hover .star-border-inner,
+.star-border-container.nav-cta-btn:hover .star-border-inner {
+  background-color: #143825 !important;
+  color: #ffffff !important;
+}
+
+/* Focus & Active states */
+.star-border-container.btn-primary:focus-visible .star-border-inner,
+.star-border-container.hero-btn-pulse:focus-visible .star-border-inner,
+.star-border-container.nav-cta-btn:focus-visible .star-border-inner {
+  outline: 2px solid var(--forest-accent, #4ade80);
+  outline-offset: 2px;
+}
+
+.star-border-container.btn-primary:active .star-border-inner,
+.star-border-container.hero-btn-pulse:active .star-border-inner,
+.star-border-container.nav-cta-btn:active .star-border-inner {
+  background-color: #0e271a !important;
+}
+
+/* Dark Theme Overrides */
+[data-theme="dark"] .star-border-container.btn-primary .star-border-inner,
+[data-theme="dark"] .star-border-container.hero-btn-pulse .star-border-inner,
+[data-theme="dark"] .star-border-container.nav-cta-btn .star-border-inner {
+  background-color: #1b5e3a;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .star-border-container.btn-primary:hover .star-border-inner,
+[data-theme="dark"] .star-border-container.hero-btn-pulse:hover .star-border-inner,
+[data-theme="dark"] .star-border-container.nav-cta-btn:hover .star-border-inner {
+  background-color: #13462b !important;
+  color: #ffffff !important;
+}
+
+/* Hover: "lap" acceleration and enhanced glow */
+.star-border-container.hover-lap:hover .star-border-spinner {
+  animation-duration: calc(var(--star-duration, 4s) * 0.45);
+  opacity: 0.95;
+  filter: drop-shadow(0 0 10px var(--star-color, #4ade80));
+}
+
+.star-border-container:hover {
+  transform: translateY(-1px);
+}
+
+/* Click Pulse Ripple */
+.star-border-container.star-border-pulse {
+  animation: star-click-pulse 0.5s ease-out;
+}
+
+@keyframes star-click-pulse {
+  0% {
+    transform: scale(0.97);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 8px rgba(74, 222, 128, 0.2);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  .star-border-spinner {
+    animation: none;
+    background: transparent;
+  }
+}
+

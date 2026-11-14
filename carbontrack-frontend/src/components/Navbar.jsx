@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api, { getProfileImageUrl } from '../api/client';
+import Avatar from './Avatar';
 import { LeafIcon } from './NatureIcons';
 import { Menu, X, LogOut, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -86,19 +87,14 @@ export default function Navbar({ onToggleSidebar }) {
               </div>
 
               <Link to="/profile" className="user-profile-pill" title="View & Edit Profile">
-                <div className="user-avatar-initials">
-                  {profile?.profileImageUrl && !avatarError ? (
-                    <img
-                      key={profile?.profileImageUrl}
-                      src={getProfileImageUrl(profile.profileImageUrl)}
-                      alt="Avatar"
-                      className="user-avatar-img"
-                      onError={() => setAvatarError(true)}
-                    />
-                  ) : (
-                    <span>{displayName.charAt(0).toUpperCase()}</span>
-                  )}
-                </div>
+                <Avatar
+                  avatarSeed={profile?.avatarSeed}
+                  seed={profile?.avatarSeed || profile?.username || user?.username}
+                  username={profile?.username || user?.username}
+                  name={displayName}
+                  profileImageUrl={profile?.profileImageUrl}
+                  size={34}
+                />
                 <div className="user-info-text">
                   <span className="user-name-text">{displayName}</span>
                   <span className="user-role-text">{profile?.role || 'Member'}</span>

@@ -19,13 +19,14 @@ public class CreateGoalRequestDTO {
     @Size(max = 500, message = "Description cannot exceed 500 characters")
     private String description;
 
-    @NotNull(message = "Baseline CO2e is required")
-    @DecimalMin(value = "0.001", message = "Baseline must be greater than zero")
+    private String category = "ALL";
+
+    private String period = "CUSTOM";
+
+    private BigDecimal targetCo2eKg;
+
     private BigDecimal baselineCo2eKg;
 
-    @NotNull(message = "Reduction percentage is required")
-    @DecimalMin(value = "0.01", message = "Reduction must be at least 0.01%")
-    @DecimalMax(value = "100.00", message = "Reduction cannot exceed 100%")
     private BigDecimal reductionPercentage;
 
     @NotNull(message = "Start date is required")
@@ -43,6 +44,21 @@ public class CreateGoalRequestDTO {
     public String getDescription() { return description; }
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) {
+        this.category = (category != null && !category.isBlank()) ? category.trim().toUpperCase() : "ALL";
+    }
+
+    public String getPeriod() { return period; }
+    public void setPeriod(String period) {
+        this.period = (period != null && !period.isBlank()) ? period.trim().toUpperCase() : "CUSTOM";
+    }
+
+    public BigDecimal getTargetCo2eKg() { return targetCo2eKg; }
+    public void setTargetCo2eKg(BigDecimal targetCo2eKg) {
+        this.targetCo2eKg = targetCo2eKg;
     }
 
     public BigDecimal getBaselineCo2eKg() { return baselineCo2eKg; }

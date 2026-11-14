@@ -27,6 +27,12 @@ const toPage = (data, page, size) => {
 export const createActivity = (data) =>
   apiClient.post('/api/activities', data).then((r) => normalize(r.data));
 
+export const updateActivity = (id, data) =>
+  apiClient.put(`/api/activities/${id}`, data).then((r) => normalize(r.data));
+
+export const deleteActivity = (id) =>
+  apiClient.delete(`/api/activities/${id}`).then((r) => r.data);
+
 export const listActivities = async ({ category, from, to, page = 0, size = 20 } = {}) => {
   const params = { category, from, to, page, size };
   try {

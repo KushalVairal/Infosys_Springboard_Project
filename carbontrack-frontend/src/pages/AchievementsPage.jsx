@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api, { getBadgeIconUrl } from '../api/client';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import CelebrationCursor, { triggerCelebrationConfetti } from '../components/CelebrationCursor';
 import '../styles/achievements.css';
 import {
   Award,
@@ -126,13 +127,51 @@ export default function AchievementsPage() {
   const [claiming, setClaiming] = useState(false);
   const [rewardError, setRewardError] = useState('');
   const [celebrationOpen, setCelebrationOpen] = useState(false);
+  const [isCelebrationActive, setIsCelebrationActive] = useState(false);
+
+  // Close celebration modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && celebrationOpen) {
+        setCelebrationOpen(false);
+        setIsCelebrationActive(false);
+      }
+    };
+    if (celebrationOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [celebrationOpen]);
 
   const loadBadges = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await api.badges.getMyBadges();
-      setEarnedBadges(Array.isArray(data) ? data : []);
+      const badgeList = Array.isArray(data) ? data : [];
+      setEarnedBadges(badgeList);
+
+      // Check if user has genuinely newly earned badges compared to previous session
+      if (badgeList.length > 0) {
+        const storedEarnedRaw = localStorage.getItem('carbontrack_seen_badges');
+        if (storedEarnedRaw !== null) {
+          try {
+            const seenBadgeKeys = JSON.parse(storedEarnedRaw);
+            const currentBadgeKeys = badgeList.map((b) => b.id || b.name);
+            const hasNewBadge = currentBadgeKeys.some((k) => !seenBadgeKeys.includes(k));
+            if (hasNewBadge) {
+              setIsCelebrationActive(true);
+              triggerCelebrationConfetti({ count: 90 });
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+        localStorage.setItem(
+          'carbontrack_seen_badges',
+          JSON.stringify(badgeList.map((b) => b.id || b.name))
+        );
+      }
     } catch (err) {
       setError(err.message || 'Unable to load your achievements from the server.');
     } finally {
@@ -181,10 +220,15 @@ export default function AchievementsPage() {
       setClaiming(true);
       setRewardError('');
 
-      await api.achievements.claim(rewardPeriod);
+      await api.achievements.claim(rewardPeriod, 'OVERALL');
+
+      setIsCelebrationActive(true);
+      triggerCelebrationConfetti({ count: 90 });
 
       // Reload database records after successful claim.
       await loadRewards();
+      await loadBadges();
+      window.dispatchEvent(new CustomEvent('carbontrack:notifications-changed'));
     } catch (err) {
       setRewardError(
         err.message || 'Unable to claim your reward.'
@@ -353,7 +397,11 @@ export default function AchievementsPage() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => setCelebrationOpen(true)}
+                onClick={() => {
+                  setIsCelebrationActive(true);
+                  setCelebrationOpen(true);
+                  triggerCelebrationConfetti({ count: 80 });
+                }}
               >
                 <Sparkles size={16} />
                 Celebrate Progress

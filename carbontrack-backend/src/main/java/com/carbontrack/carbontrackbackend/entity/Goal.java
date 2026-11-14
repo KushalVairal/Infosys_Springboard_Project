@@ -24,6 +24,12 @@ public class Goal {
     @Column(length = 500)
     private String description;
 
+    @Column(nullable = false, length = 50)
+    private String category = "ALL";
+
+    @Column(nullable = false, length = 30)
+    private String period = "CUSTOM"; // DAILY, WEEKLY, MONTHLY, CUSTOM
+
     @Column(name = "target_co2e_kg", nullable = false,
             precision = 14, scale = 3)
     private BigDecimal targetCo2eKg;
@@ -61,6 +67,16 @@ public class Goal {
     public String getDescription() { return description; }
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) {
+        this.category = (category != null && !category.isBlank()) ? category.trim().toUpperCase() : "ALL";
+    }
+
+    public String getPeriod() { return period; }
+    public void setPeriod(String period) {
+        this.period = (period != null && !period.isBlank()) ? period.trim().toUpperCase() : "CUSTOM";
     }
 
     public BigDecimal getTargetCo2eKg() { return targetCo2eKg; }

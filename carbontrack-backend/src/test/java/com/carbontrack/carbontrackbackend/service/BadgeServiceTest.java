@@ -45,6 +45,9 @@ class BadgeServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
     private BadgeService badgeService;
     private User testUser;
     private Badge streakBadge;
@@ -60,7 +63,8 @@ class BadgeServiceTest {
                 userBadgeRepository,
                 activityLogRepository,
                 goalRepository,
-                userRepository
+                userRepository,
+                notificationService
         );
 
         testUser = new User();

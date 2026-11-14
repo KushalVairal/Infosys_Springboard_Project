@@ -3,8 +3,8 @@
   margin: 28px 0;
   padding: 24px;
   border-radius: 18px;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
 }
 
 .leaderboard-rewards-header {
@@ -17,38 +17,70 @@
 
 .leaderboard-rewards-header h2,
 .personal-reward-collection h2 {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.leaderboard-rewards-header p,
+.personal-reward-collection > p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.45;
 }
 
 .reward-period-select {
-  padding: 10px 14px;
+  padding: 8px 14px;
   border-radius: 9px;
-  border: 1px solid var(--border-color, #ccc);
-  background: var(--card-bg, #fff);
-  color: inherit;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-subtle);
+  color: var(--text-main);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.reward-period-select:focus {
+  outline: none;
+  border-color: var(--forest-primary);
+}
+
+.reward-period-select option {
+  background: var(--bg-surface);
+  color: var(--text-main);
 }
 
 .reward-current-status {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin: 24px 0;
+  gap: 14px;
+  margin: 20px 0;
 }
 
 .reward-current-status > div {
-  padding: 18px;
+  padding: 16px 18px;
   border-radius: 12px;
-  background: var(--background-secondary, #f4f7f4);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-soft);
 }
 
 .reward-current-status span {
   display: block;
-  font-size: 13px;
-  opacity: 0.75;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .reward-current-status h3 {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
 }
 
 .reward-actions {
@@ -57,6 +89,25 @@
   gap: 12px;
 }
 
+/* ── Reward cards inside "My Reward Collection" ────────────── */
+.personal-reward-collection .badge-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+}
+
+.personal-reward-collection .badge-card-body h3 {
+  color: var(--text-main);
+}
+
+.personal-reward-collection .badge-card-body p {
+  color: var(--text-muted);
+}
+
+.personal-reward-collection .badge-card-footer span {
+  color: var(--text-faint);
+}
+
+/* ── Celebration overlay ─────────────────────────────────────── */
 .reward-celebration-overlay {
   position: fixed;
   inset: 0;

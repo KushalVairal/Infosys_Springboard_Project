@@ -71,6 +71,7 @@ class UserProfileServiceTest {
         update.setPreferredUnit("TONNES_CO2E");
         update.setGoalVisibility(false);
         update.setLocation("Berlin");
+        update.setAvatarSeed("custom-avatar-123");
 
         UserProfileResponseDTO result = userProfileService.updateMyProfile("testuser@example.com", update);
 
@@ -79,6 +80,7 @@ class UserProfileServiceTest {
         assertEquals("TONNES_CO2E", result.getPreferredUnit());
         assertFalse(result.isGoalVisibility());
         assertEquals("Berlin", result.getLocation());
+        assertEquals("custom-avatar-123", result.getAvatarSeed());
     }
 
     @Test
